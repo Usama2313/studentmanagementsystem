@@ -28,13 +28,38 @@ import {
   X,
   Phone,
   Mail,
-  BookOpen
+  BookOpen,
+  Menu,
+  ChevronRight,
+  ShieldCheck,
+  Award,
+  Globe,
+  Database,
+  UserCheck,
+  AlertTriangle,
+  RefreshCw,
+  ExternalLink,
+  Sliders,
+  Check,
+  Eye,
+  Camera,
+  Crown
 } from 'lucide-react';
+
 import {
   fetchTeachers,
   createTeacher,
   updateTeacher,
   deleteTeacher,
+  fetchStudents,
+  createStudent,
+  updateStudent,
+  deleteStudent,
+  fetchParents,
+  createParent,
+  updateParent,
+  deleteParent,
+  fetchStats,
   fetchMenu,
   updateMenu,
   broadcastMealUpdate,
@@ -48,11 +73,76 @@ import {
   createAdminUser
 } from '../api';
 
-export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
-  const [activeTab, setActiveTab] = useState('teachers'); // 'teachers', 'meals', 'news', 'biometrics', 'ptm', 'superadmin'
+const GCC_CAMPUSES = [
+  'Dubai Academic City Campus (UAE)',
+  'Riyadh Diplomatic Quarter Campus (KSA)',
+  'Bahrain International Campus (Manama)',
+  'Kuwait City Campus',
+  'Doha Education City Campus (Qatar)',
+  'Muscat Knowledge Oasis Campus (Oman)'
+];
 
-  // Teacher Management State
+const GCC_COUNTRIES_LIST = [
+  'United Arab Emirates',
+  'Saudi Arabia',
+  'Bahrain',
+  'Kuwait',
+  'Qatar',
+  'Oman'
+];
+
+const SAMPLE_PARENT_AVATARS = [
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&h=200&q=80'
+];
+
+export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
+  // Navigation & Drawer
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'students', 'teachers', 'parents', 'meals', 'news', 'biometrics', 'ptm', 'roles', 'superadmin'
+  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [simulatedRole, setSimulatedRole] = useState(currentUser?.role || 'superadmin');
+
+  // Stats
+  const [stats, setStats] = useState({
+    studentsCount: 1200,
+    teachersCount: 28,
+    parentsCount: 1200,
+    campusesCount: 6,
+    countriesCount: 6
+  });
+
+  // Students State
+  const [studentsList, setStudentsList] = useState([]);
+  const [studentsTotal, setStudentsTotal] = useState(1200);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [studentCountryFilter, setStudentCountryFilter] = useState('ALL');
+  const [studentGradeFilter, setStudentGradeFilter] = useState('ALL');
+  const [studentPage, setStudentPage] = useState(1);
+  const [studentLoading, setStudentLoading] = useState(false);
+  const [studentModalOpen, setStudentModalOpen] = useState(false);
+  const [studentMsg, setStudentMsg] = useState('');
+  const [studentFormData, setStudentFormData] = useState({
+    name: '',
+    gender: 'Male',
+    grade: 'Grade 9',
+    section: 'A',
+    campus: GCC_CAMPUSES[0],
+    country: GCC_COUNTRIES_LIST[0],
+    nationality: 'Emirati',
+    parentName: '',
+    parentPhone: '+971 501234567',
+    parentEmail: ''
+  });
+
+  // Teachers State
   const [teachersList, setTeachersList] = useState([]);
+  const [teachersTotal, setTeachersTotal] = useState(28);
   const [teacherSearch, setTeacherSearch] = useState('');
   const [teacherSubjectFilter, setTeacherSubjectFilter] = useState('ALL');
   const [teacherModalOpen, setTeacherModalOpen] = useState(false);
@@ -62,8 +152,8 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
     gender: 'Female',
     subject: 'Mathematics',
     grade: 'Grade 9 - 12',
-    campus: 'Dubai Academic City Campus (UAE)',
-    country: 'United Arab Emirates',
+    campus: GCC_CAMPUSES[0],
+    country: GCC_COUNTRIES_LIST[0],
     nationality: 'Emirati',
     phone: '+971 501234567',
     email: ''
@@ -71,7 +161,28 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
   const [teacherMsg, setTeacherMsg] = useState('');
   const [teacherLoading, setTeacherLoading] = useState(false);
 
-  // Meal Broadcast & Menu State
+  // Parents State (with Pictures)
+  const [parentsList, setParentsList] = useState([]);
+  const [parentsTotal, setParentsTotal] = useState(1200);
+  const [parentSearch, setParentSearch] = useState('');
+  const [parentCountryFilter, setParentCountryFilter] = useState('ALL');
+  const [parentModalOpen, setParentModalOpen] = useState(false);
+  const [parentMsg, setParentMsg] = useState('');
+  const [parentLoading, setParentLoading] = useState(false);
+  const [parentFormData, setParentFormData] = useState({
+    name: '',
+    relationship: 'Mother',
+    studentName: '',
+    studentGrade: 'Grade 9',
+    phone: '+971 501234567',
+    email: '',
+    country: GCC_COUNTRIES_LIST[0],
+    campus: GCC_CAMPUSES[0],
+    avatar: SAMPLE_PARENT_AVATARS[0],
+    preferredChannel: 'WhatsApp & SMS'
+  });
+
+  // Meals & Menu State
   const [menuDays, setMenuDays] = useState([]);
   const [selectedDay, setSelectedDay] = useState('Sunday');
   const [currentEditMenu, setCurrentEditMenu] = useState(null);
@@ -106,8 +217,15 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
   });
   const [superAdminMsg, setSuperAdminMsg] = useState('');
 
+  const token = localStorage.getItem('gcc_admin_token');
+  const isSuperadmin = simulatedRole === 'superadmin';
+
+  // Initial Data Loading
   useEffect(() => {
-    loadTeachers();
+    loadAllStats();
+    loadTeachersData();
+    loadStudentsData();
+    loadParentsData();
     loadMenuAndBroadcasts();
     loadNewsData();
     loadBioData();
@@ -117,14 +235,79 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
     }
   }, [currentUser]);
 
-  const token = localStorage.getItem('gcc_admin_token');
+  const loadAllStats = async () => {
+    try {
+      const res = await fetchStats();
+      if (res) {
+        setStats(res);
+        if (res.studentsCount) setStudentsTotal(res.studentsCount);
+        if (res.teachersCount) setTeachersTotal(res.teachersCount);
+        if (res.parentsCount) setParentsTotal(res.parentsCount);
+      }
+    } catch (e) {
+      console.warn('Stats fallback active');
+    }
+  };
+
+  // --- STUDENTS ---
+  const loadStudentsData = async () => {
+    try {
+      setStudentLoading(true);
+      const res = await fetchStudents({
+        page: studentPage,
+        limit: 15,
+        search: studentSearch,
+        country: studentCountryFilter,
+        grade: studentGradeFilter
+      });
+      if (res?.data) {
+        setStudentsList(res.data);
+        if (res.total) setStudentsTotal(res.total);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setStudentLoading(false);
+    }
+  };
+
+  const handleEnrollStudent = async (e) => {
+    e?.preventDefault();
+    try {
+      await createStudent(studentFormData, token);
+      setStudentMsg(`Student ${studentFormData.name} enrolled with Biometric Thumbprint ID!`);
+      setStudentModalOpen(false);
+      loadStudentsData();
+      loadAllStats();
+      loadParentsData();
+      setTimeout(() => setStudentMsg(''), 5000);
+    } catch (err) {
+      setStudentMsg('Error enrolling student: ' + err.message);
+    }
+  };
+
+  const handleDeleteStudent = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to remove student ${name} (${id})?`)) return;
+    try {
+      await deleteStudent(id, token);
+      setStudentMsg(`Student ${name} archived from records.`);
+      loadStudentsData();
+      loadAllStats();
+      setTimeout(() => setStudentMsg(''), 4000);
+    } catch (err) {
+      setStudentMsg('Error removing student: ' + err.message);
+    }
+  };
 
   // --- TEACHERS ---
-  const loadTeachers = async () => {
+  const loadTeachersData = async () => {
     try {
       setTeacherLoading(true);
       const res = await fetchTeachers({ search: teacherSearch, subject: teacherSubjectFilter });
-      if (res?.data) setTeachersList(res.data);
+      if (res?.data) {
+        setTeachersList(res.data);
+        if (res.total) setTeachersTotal(res.total);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -144,7 +327,8 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
       }
       setTeacherModalOpen(false);
       setEditingTeacher(null);
-      loadTeachers();
+      loadTeachersData();
+      loadAllStats();
       setTimeout(() => setTeacherMsg(''), 4000);
     } catch (err) {
       setTeacherMsg('Error saving teacher: ' + err.message);
@@ -152,84 +336,82 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
   };
 
   const handleDeleteTeacher = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to remove ${name} from the faculty registry?`)) return;
+    if (!window.confirm(`Are you sure you want to remove ${name} from faculty registry?`)) return;
     try {
       await deleteTeacher(id, token);
       setTeacherMsg(`Teacher ${name} removed.`);
-      loadTeachers();
+      loadTeachersData();
+      loadAllStats();
       setTimeout(() => setTeacherMsg(''), 4000);
     } catch (err) {
-      setTeacherMsg('Error deleting: ' + err.message);
+      setTeacherMsg('Error removing teacher: ' + err.message);
     }
   };
 
-  const openAddTeacher = () => {
-    setEditingTeacher(null);
-    setTeacherFormData({
-      name: '',
-      gender: 'Female',
-      subject: 'Mathematics',
-      grade: 'Grade 9 - 12',
-      campus: 'Dubai Academic City Campus (UAE)',
-      country: 'United Arab Emirates',
-      nationality: 'Emirati',
-      phone: '+971 501234567',
-      email: ''
-    });
-    setTeacherModalOpen(true);
+  // --- PARENTS (WITH PICTURES) ---
+  const loadParentsData = async () => {
+    try {
+      setParentLoading(true);
+      const res = await fetchParents({
+        search: parentSearch,
+        country: parentCountryFilter,
+        limit: 15
+      });
+      if (res?.data) {
+        setParentsList(res.data);
+        if (res.total) setParentsTotal(res.total);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setParentLoading(false);
+    }
   };
 
-  const openEditTeacher = (teacher) => {
-    setEditingTeacher(teacher);
-    setTeacherFormData({
-      name: teacher.name,
-      gender: teacher.gender || 'Female',
-      subject: teacher.subject,
-      grade: teacher.grade || 'High School',
-      campus: teacher.campus,
-      country: teacher.country,
-      nationality: teacher.nationality || 'Emirati',
-      phone: teacher.phone || '',
-      email: teacher.email || ''
-    });
-    setTeacherModalOpen(true);
+  const handleRegisterParent = async (e) => {
+    e?.preventDefault();
+    try {
+      await createParent(parentFormData, token);
+      setParentMsg(`Parent ${parentFormData.name} registered with photo profile!`);
+      setParentModalOpen(false);
+      loadParentsData();
+      loadAllStats();
+      setTimeout(() => setParentMsg(''), 5000);
+    } catch (err) {
+      setParentMsg('Error registering parent: ' + err.message);
+    }
+  };
+
+  const handleDeleteParent = async (id, name) => {
+    if (!window.confirm(`Remove parent ${name} from school contact registry?`)) return;
+    try {
+      await deleteParent(id, token);
+      setParentMsg(`Parent ${name} removed.`);
+      loadParentsData();
+      loadAllStats();
+      setTimeout(() => setParentMsg(''), 4000);
+    } catch (err) {
+      setParentMsg('Error: ' + err.message);
+    }
   };
 
   // --- MEALS & BROADCASTS ---
   const loadMenuAndBroadcasts = async () => {
     try {
-      const res = await fetchMenu();
-      if (res?.days) {
-        setMenuDays(res.days);
-        const cur = res.days.find((d) => d.day.toLowerCase() === selectedDay.toLowerCase()) || res.days[0];
-        setCurrentEditMenu(JSON.parse(JSON.stringify(cur)));
+      const menuRes = await fetchMenu();
+      if (menuRes?.days) {
+        setMenuDays(menuRes.days);
+        const cur = menuRes.days.find(d => d.day.toLowerCase() === selectedDay.toLowerCase()) || menuRes.days[0];
+        setCurrentEditMenu(cur);
       }
-      const hRes = await fetchMealHistory(token);
-      if (hRes?.history) setMealHistory(hRes.history);
+      const historyRes = await fetchMealHistory(token);
+      if (historyRes?.history) setMealHistory(historyRes.history);
     } catch (e) {
       console.error(e);
     }
   };
 
-  const handleDaySelect = (dayName) => {
-    setSelectedDay(dayName);
-    const cur = menuDays.find((d) => d.day.toLowerCase() === dayName.toLowerCase());
-    if (cur) setCurrentEditMenu(JSON.parse(JSON.stringify(cur)));
-  };
-
-  const handleSaveMenu = async () => {
-    if (!currentEditMenu) return;
-    try {
-      await updateMenu(currentEditMenu.day, currentEditMenu, token);
-      setMealMsg(`Weekly menu for ${currentEditMenu.day} updated in Supabase.`);
-      loadMenuAndBroadcasts();
-      setTimeout(() => setMealMsg(''), 4000);
-    } catch (err) {
-      setMealMsg('Failed to update menu: ' + err.message);
-    }
-  };
-
-  const handleBroadcastMealToParents = async () => {
+  const handleSendBroadcast = async () => {
     if (!currentEditMenu) return;
     setBroadcastLoading(true);
     setMealMsg('');
@@ -238,19 +420,15 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
         day: currentEditMenu.day,
         theme: currentEditMenu.theme,
         targetCampus: broadcastTarget,
-        customNotice: customDietaryNotice,
-        mealsSummary: {
-          breakfast: currentEditMenu.breakfast?.main || 'Nutrition Breakfast',
-          lunch: currentEditMenu.lunch?.main || 'Balanced Lunch',
-          nutrition: `Calories: ${currentEditMenu.lunch?.calories || '650 kcal'} | 100% Halal`
-        }
+        customNote: customDietaryNotice,
+        menuSnapshot: currentEditMenu
       }, token);
 
-      setMealMsg(`🚀 ${res.message}`);
+      setMealMsg(`🚀 Broadcast sent! ${res.recipientsCount} Parents notified across ${broadcastTarget} via SMS & Portal.`);
       loadMenuAndBroadcasts();
       setTimeout(() => setMealMsg(''), 6000);
     } catch (err) {
-      setMealMsg('Broadcast failed: ' + err.message);
+      setMealMsg('Failed to broadcast: ' + err.message);
     } finally {
       setBroadcastLoading(false);
     }
@@ -260,25 +438,24 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
   const loadNewsData = async () => {
     try {
       const res = await fetchNews();
-      if (res?.data) setNewsList(res.data);
+      if (res?.articles) setNewsList(res.articles);
     } catch (e) {
       console.error(e);
     }
   };
 
-  const handlePublishNews = async (e) => {
-    e?.preventDefault();
-    if (!newsTitle.trim() || !newsContent.trim()) return;
+  const handleCreateNews = async (e) => {
+    e.preventDefault();
+    if (!newsTitle || !newsContent) return;
     try {
       await createNews({
         title: newsTitle,
         category: newsCategory,
         campus: newsCampus,
         content: newsContent,
-        coverImage: newsCover,
-        featured: true
+        coverImage: newsCover
       }, token);
-      setNewsMsg('Official announcement broadcasted.');
+      setNewsMsg('Announcement published across GCC portals.');
       setNewsTitle('');
       setNewsContent('');
       loadNewsData();
@@ -289,11 +466,12 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
   };
 
   const handleDeleteNews = async (id) => {
+    if (!window.confirm('Delete this article from campus boards?')) return;
     try {
       await deleteNews(id, token);
       loadNewsData();
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -301,27 +479,33 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
   const loadBioData = async () => {
     try {
       const res = await fetchBiometricLogs();
-      if (res?.data) setBioLogs(res.data);
-    } catch (e) {}
+      if (res?.logs) setBioLogs(res.logs);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const loadPtmData = async () => {
     try {
       const res = await fetchPtmBookings();
-      if (res?.data) setPtmBookings(res.data);
-    } catch (e) {}
+      if (res?.bookings) setPtmBookings(res.bookings);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  // --- SUPERADMIN ---
+  // --- ADMIN USERS (SUPERADMIN ONLY) ---
   const loadAdminUsers = async () => {
     try {
       const res = await fetchAdminUsers(token);
       if (res?.users) setAdminUsers(res.users);
-    } catch (e) {}
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleCreateAdmin = async (e) => {
-    e?.preventDefault();
+    e.preventDefault();
     try {
       await createAdminUser(newAdminForm, token);
       setSuperAdminMsg(`Admin account "${newAdminForm.username}" successfully provisioned.`);
@@ -340,131 +524,524 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
     }
   };
 
-  const isSuperadmin = currentUser?.role === 'superadmin';
-
   return (
-    <div className="admin-dashboard-root">
-      {/* Top Admin Bar */}
-      <div className="admin-topbar glass-panel">
-        <div className="admin-brand-info">
-          <div className="brand-badge-box">
-            <ShieldAlert size={22} className={isSuperadmin ? 'text-gold' : 'text-emerald'} />
-          </div>
-          <div>
-            <div className="admin-title-row">
-              <span className="admin-portal-label">GCC Executive Directorate Console</span>
-              <span className={`role-badge ${isSuperadmin ? 'role-superadmin' : 'role-admin'}`}>
-                {isSuperadmin ? '👑 SUPERADMIN (REGIONAL)' : '🎓 CAMPUS ADMIN'}
-              </span>
+    <div className={`admin-portal-wrapper ${drawerOpen ? 'drawer-expanded' : 'drawer-collapsed'}`}>
+      {/* ========================================================= */}
+      {/* 🧭 SIDE DRAWER (ADMIN & SUPER ADMIN NAVIGATION)            */}
+      {/* ========================================================= */}
+      <aside className={`admin-side-drawer ${drawerOpen ? 'open' : 'collapsed'}`}>
+        <div className="drawer-header">
+          <div className="drawer-brand">
+            <div className="brand-crest">
+              <ShieldAlert size={20} className={isSuperadmin ? 'text-gold' : 'text-emerald'} />
             </div>
-            <div className="admin-meta-sub">
-              <span>User: <strong>{currentUser?.fullName || currentUser?.username}</strong></span>
-              <span className="dot-divider">•</span>
-              <span>AES-256-GCM Active</span>
-              <span className="dot-divider">•</span>
-              <span className="live-pill">Live Supabase Cloud</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="admin-top-actions">
-          <button className="btn-admin-logout" onClick={onLogout} title="Sign Out">
-            <LogOut size={16} />
-            <span>Sign Out</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Admin Navigation Tabs */}
-      <div className="admin-nav-tabs">
-        <button
-          className={`tab-btn ${activeTab === 'teachers' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('teachers'); loadTeachers(); }}
-        >
-          <GraduationCap size={18} />
-          <span>Faculty & Teachers</span>
-          <span className="tab-count">{teachersList.length}</span>
-        </button>
-
-        <button
-          className={`tab-btn ${activeTab === 'meals' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('meals'); loadMenuAndBroadcasts(); }}
-        >
-          <Utensils size={18} />
-          <span>Student Meals & Parent Updates</span>
-        </button>
-
-        <button
-          className={`tab-btn ${activeTab === 'biometrics' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('biometrics'); loadBioData(); }}
-        >
-          <Fingerprint size={18} />
-          <span>Biometric Logs</span>
-          <span className="tab-count">{bioLogs.length}</span>
-        </button>
-
-        <button
-          className={`tab-btn ${activeTab === 'news' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('news'); loadNewsData(); }}
-        >
-          <Newspaper size={18} />
-          <span>Campus News</span>
-        </button>
-
-        <button
-          className={`tab-btn ${activeTab === 'ptm' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('ptm'); loadPtmData(); }}
-        >
-          <CalendarCheck size={18} />
-          <span>Parent Consultations (PTM)</span>
-        </button>
-
-        {isSuperadmin && (
-          <button
-            className={`tab-btn superadmin-tab ${activeTab === 'superadmin' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('superadmin'); loadAdminUsers(); }}
-          >
-            <Lock size={18} />
-            <span>Superadmin Access Control</span>
-          </button>
-        )}
-      </div>
-
-      {/* Main Admin Tab Content */}
-      <div className="admin-body">
-        {/* ======================================= */}
-        {/* TAB 1: TEACHER MANAGEMENT (ADMIN MANAGED) */}
-        {/* ======================================= */}
-        {activeTab === 'teachers' && (
-          <div className="admin-section">
-            <div className="section-header-row">
-              <div>
-                <h2>Faculty Registry & Teacher Management</h2>
-                <p>Manage, onboard, and assign biometric credentials to GCC international educators.</p>
+            {drawerOpen && (
+              <div className="brand-titles">
+                <span className="brand-title-main">GCC Directorate</span>
+                <span className="brand-title-sub">International Schools</span>
               </div>
-              <button className="btn-add-primary" onClick={openAddTeacher}>
+            )}
+          </div>
+          <button
+            className="drawer-toggle-btn"
+            onClick={() => setDrawerOpen(!drawerOpen)}
+            title={drawerOpen ? 'Collapse Navigation' : 'Expand Navigation'}
+          >
+            {drawerOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
+
+        {/* User Card & Role Switcher */}
+        {drawerOpen && (
+          <div className="drawer-user-card glass-panel">
+            <div className="user-avatar-badge">
+              <div className="avatar-img-circle">
+                {currentUser?.fullName ? currentUser.fullName.charAt(0) : 'A'}
+              </div>
+              <div className="user-meta">
+                <span className="user-name">{currentUser?.fullName || currentUser?.username || 'Executive Admin'}</span>
+                <span className={`user-role-chip ${isSuperadmin ? 'superadmin' : 'campus-admin'}`}>
+                  {isSuperadmin ? '👑 Regional Super Admin' : '🛡️ Campus Administrator'}
+                </span>
+              </div>
+            </div>
+
+            {/* Role Simulation Switcher (Lets user experience difference) */}
+            <div className="role-switch-container">
+              <span className="role-switch-label">Clearance Mode:</span>
+              <div className="role-switch-pills">
+                <button
+                  className={`pill-btn ${simulatedRole === 'superadmin' ? 'active gold' : ''}`}
+                  onClick={() => setSimulatedRole('superadmin')}
+                  title="Super Admin has multi-country sovereignty & master access"
+                >
+                  👑 Super Admin
+                </button>
+                <button
+                  className={`pill-btn ${simulatedRole === 'admin' ? 'active emerald' : ''}`}
+                  onClick={() => setSimulatedRole('admin')}
+                  title="Campus Admin has single-branch operations access"
+                >
+                  🛡️ Admin
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Drawer Navigation Links */}
+        <nav className="drawer-nav">
+          <button
+            className={`nav-item ${activeTab === 'overview' ? 'active' : ''}`}
+            onClick={() => setActiveTab('overview')}
+            title="Overview & Metrics"
+          >
+            <Activity size={18} />
+            {drawerOpen && <span>Executive Overview</span>}
+          </button>
+
+          <button
+            className={`nav-item ${activeTab === 'students' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('students'); loadStudentsData(); }}
+            title="Students Directory"
+          >
+            <GraduationCap size={18} />
+            {drawerOpen && (
+              <>
+                <span>Students Directory</span>
+                <span className="nav-badge emerald">{studentsTotal}</span>
+              </>
+            )}
+          </button>
+
+          <button
+            className={`nav-item ${activeTab === 'teachers' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('teachers'); loadTeachersData(); }}
+            title="Faculty & Teachers"
+          >
+            <Users size={18} />
+            {drawerOpen && (
+              <>
+                <span>Faculty & Teachers</span>
+                <span className="nav-badge gold">{teachersTotal}</span>
+              </>
+            )}
+          </button>
+
+          <button
+            className={`nav-item ${activeTab === 'parents' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('parents'); loadParentsData(); }}
+            title="Parents & Guardians (With Photos)"
+          >
+            <BookOpen size={18} />
+            {drawerOpen && (
+              <>
+                <span>Parents & Guardians</span>
+                <span className="nav-badge cyan">{parentsTotal}</span>
+              </>
+            )}
+          </button>
+
+          <button
+            className={`nav-item ${activeTab === 'meals' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('meals'); loadMenuAndBroadcasts(); }}
+            title="Meal Broadcasts"
+          >
+            <Utensils size={18} />
+            {drawerOpen && <span>Meal Broadcasts</span>}
+          </button>
+
+          <button
+            className={`nav-item ${activeTab === 'news' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('news'); loadNewsData(); }}
+            title="Campus News"
+          >
+            <Newspaper size={18} />
+            {drawerOpen && <span>Campus News</span>}
+          </button>
+
+          <button
+            className={`nav-item ${activeTab === 'biometrics' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('biometrics'); loadBioData(); }}
+            title="Biometric Gate Logs"
+          >
+            <Fingerprint size={18} />
+            {drawerOpen && (
+              <>
+                <span>Biometric Gate</span>
+                <span className="nav-badge purple">{bioLogs.length}</span>
+              </>
+            )}
+          </button>
+
+          <button
+            className={`nav-item ${activeTab === 'ptm' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('ptm'); loadPtmData(); }}
+            title="Parent Consultations"
+          >
+            <CalendarCheck size={18} />
+            {drawerOpen && (
+              <>
+                <span>PTM Consultations</span>
+                <span className="nav-badge blue">{ptmBookings.length}</span>
+              </>
+            )}
+          </button>
+
+          <button
+            className={`nav-item ${activeTab === 'roles' ? 'active' : ''}`}
+            onClick={() => setActiveTab('roles')}
+            title="Admin vs Super Admin Role Matrix"
+          >
+            <ShieldCheck size={18} />
+            {drawerOpen && <span>Roles & Permissions</span>}
+          </button>
+
+          {isSuperadmin && (
+            <button
+              className={`nav-item superadmin-highlight ${activeTab === 'superadmin' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('superadmin'); loadAdminUsers(); }}
+              title="Superadmin Governance"
+            >
+              <Lock size={18} />
+              {drawerOpen && <span>Superadmin Security</span>}
+            </button>
+          )}
+        </nav>
+
+        {/* Drawer Bottom Actions */}
+        <div className="drawer-footer">
+          <button className="btn-drawer-logout" onClick={onLogout} title="Sign Out">
+            <LogOut size={16} />
+            {drawerOpen && <span>Sign Out Portal</span>}
+          </button>
+        </div>
+      </aside>
+
+      {/* ========================================================= */}
+      {/* 🚀 MAIN ADMIN PORTAL CONTENT AREA                         */}
+      {/* ========================================================= */}
+      <main className="admin-main-container">
+        {/* Top Header Bar */}
+        <header className="admin-top-bar glass-panel">
+          <div className="top-bar-left">
+            <button
+              className="drawer-mobile-btn"
+              onClick={() => setDrawerOpen(!drawerOpen)}
+            >
+              <Menu size={20} />
+            </button>
+            <div>
+              <div className="title-row-flex">
+                <h1 className="portal-main-heading">
+                  {activeTab === 'overview' && 'Executive Directorate Command Center'}
+                  {activeTab === 'students' && 'Students Academic & Biometric Directory'}
+                  {activeTab === 'teachers' && 'Faculty Registry & Teacher Management'}
+                  {activeTab === 'parents' && 'Parents & Legal Guardians Registry'}
+                  {activeTab === 'meals' && 'Student Nutrition & Parent Meal Broadcasts'}
+                  {activeTab === 'news' && 'GCC Campus Announcements & Bulletins'}
+                  {activeTab === 'biometrics' && 'Live Biometric Gate & Attendance Logs'}
+                  {activeTab === 'ptm' && 'Parent-Teacher Conference (PTM) Reservations'}
+                  {activeTab === 'roles' && 'Access Control: Admin vs. Super Admin Roles'}
+                  {activeTab === 'superadmin' && 'Sovereign Superadmin Cryptographic Console'}
+                </h1>
+                <span className={`badge-role-pill ${isSuperadmin ? 'gold-glow' : 'emerald-glow'}`}>
+                  {isSuperadmin ? '👑 Super Admin (Full GCC Jurisdiction)' : '🎓 Campus Admin (Local Scope)'}
+                </span>
+              </div>
+              <p className="portal-subtext">
+                Live synchronization across 6 GCC hubs • AES-256 encrypted • Connected to PostgreSQL Database
+              </p>
+            </div>
+          </div>
+
+          <div className="top-bar-right">
+            <button className="btn-refresh-data" onClick={() => {
+              loadAllStats();
+              loadTeachersData();
+              loadStudentsData();
+              loadParentsData();
+            }} title="Refresh Live Database">
+              <RefreshCw size={15} />
+              <span>Sync DB</span>
+            </button>
+            <button className="btn-top-logout" onClick={onLogout}>
+              <LogOut size={15} />
+              <span>Logout</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Global Prominent Stats Cards: Displaying Total Counts */}
+        <section className="stats-metric-strip">
+          <div className="stat-card glass-panel emerald-border" onClick={() => { setActiveTab('students'); loadStudentsData(); }}>
+            <div className="stat-icon-wrap emerald">
+              <GraduationCap size={24} />
+            </div>
+            <div className="stat-content">
+              <span className="stat-label">Total Students Enrolled</span>
+              <strong className="stat-val emerald">{studentsTotal}</strong>
+              <span className="stat-sub">Across 6 GCC Countries</span>
+            </div>
+          </div>
+
+          <div className="stat-card glass-panel gold-border" onClick={() => { setActiveTab('teachers'); loadTeachersData(); }}>
+            <div className="stat-icon-wrap gold">
+              <Users size={24} />
+            </div>
+            <div className="stat-content">
+              <span className="stat-label">Total Faculty & Teachers</span>
+              <strong className="stat-val gold">{teachersTotal}</strong>
+              <span className="stat-sub">Certified International Educators</span>
+            </div>
+          </div>
+
+          <div className="stat-card glass-panel cyan-border" onClick={() => { setActiveTab('parents'); loadParentsData(); }}>
+            <div className="stat-icon-wrap cyan">
+              <BookOpen size={24} />
+            </div>
+            <div className="stat-content">
+              <span className="stat-label">Total Registered Parents</span>
+              <strong className="stat-val cyan">{parentsTotal}</strong>
+              <span className="stat-sub">Verified with Photo ID & WhatsApp</span>
+            </div>
+          </div>
+
+          <div className="stat-card glass-panel purple-border">
+            <div className="stat-icon-wrap purple">
+              <Globe size={24} />
+            </div>
+            <div className="stat-content">
+              <span className="stat-label">GCC Campuses & Hubs</span>
+              <strong className="stat-val purple">6 Hubs</strong>
+              <span className="stat-sub">🇦🇪 🇸🇦 🇧🇭 🇰🇼 🇶🇦 🇴🇲</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Notification / Success Banners */}
+        {studentMsg && (
+          <div className="alert-banner-success">
+            <CheckCircle2 size={18} />
+            <span>{studentMsg}</span>
+          </div>
+        )}
+        {teacherMsg && (
+          <div className="alert-banner-success">
+            <CheckCircle2 size={18} />
+            <span>{teacherMsg}</span>
+          </div>
+        )}
+        {parentMsg && (
+          <div className="alert-banner-success">
+            <CheckCircle2 size={18} />
+            <span>{parentMsg}</span>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 1: EXECUTIVE OVERVIEW                                  */}
+        {/* ========================================================= */}
+        {activeTab === 'overview' && (
+          <div className="tab-pane-container">
+            <div className="overview-grid">
+              {/* Left Column: Quick Actions & Live Campus Status */}
+              <div className="overview-card glass-panel">
+                <div className="card-heading-row">
+                  <h3>🏫 GCC Regional Campus Network</h3>
+                  <span className="live-indicator"><span className="pulse-dot"></span> Live Operations</span>
+                </div>
+                <div className="campus-status-list">
+                  {GCC_CAMPUSES.map((c, i) => (
+                    <div key={c} className="campus-row-item">
+                      <div className="campus-badge-circle">{i + 1}</div>
+                      <div className="campus-info">
+                        <strong>{c}</strong>
+                        <span>Biometric Gates Online • Halal Dining Active</span>
+                      </div>
+                      <span className="status-pill operational">Operational</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Column: Roles Matrix Brief & Live Feeds */}
+              <div className="overview-card glass-panel">
+                <div className="card-heading-row">
+                  <h3>🛡️ Active Role Clearance & Authority</h3>
+                  <button className="btn-link" onClick={() => setActiveTab('roles')}>
+                    View Full Matrix <ChevronRight size={14} />
+                  </button>
+                </div>
+                <div className="role-summary-box">
+                  <div className={`role-highlight-banner ${isSuperadmin ? 'gold-grad' : 'emerald-grad'}`}>
+                    <div className="role-icon">
+                      {isSuperadmin ? <Crown size={32} /> : <ShieldAlert size={32} />}
+                    </div>
+                    <div>
+                      <h4>{isSuperadmin ? 'Super Admin Mode: Sovereign Regional Director' : 'Admin Mode: Campus Operations Manager'}</h4>
+                      <p>
+                        {isSuperadmin
+                          ? 'You possess full master control over all 6 GCC countries, database CRUD, promoting admins, and Twilio/WhatsApp gateways.'
+                          : 'You possess branch-level authority: managing local students, faculty, daily meals, and gate attendance.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="quick-action-strip">
+                    <button className="btn-quick" onClick={() => { setActiveTab('students'); setStudentModalOpen(true); }}>
+                      <UserPlus size={15} /> Enroll Student
+                    </button>
+                    <button className="btn-quick" onClick={() => { setActiveTab('teachers'); setTeacherModalOpen(true); }}>
+                      <Users size={15} /> Onboard Teacher
+                    </button>
+                    <button className="btn-quick" onClick={() => { setActiveTab('parents'); setParentModalOpen(true); }}>
+                      <Camera size={15} /> Register Parent
+                    </button>
+                    <button className="btn-quick" onClick={() => setActiveTab('meals')}>
+                      <Utensils size={15} /> Send Meal Alert
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 2: STUDENTS DIRECTORY (DEDICATED TAB)                  */}
+        {/* ========================================================= */}
+        {activeTab === 'students' && (
+          <div className="tab-pane-container">
+            <div className="section-header-flex">
+              <div>
+                <h2>🎓 Student Directory & Biometric Profiles</h2>
+                <p>Showing <strong>{studentsTotal} total students</strong> registered in the database across all GCC branches.</p>
+              </div>
+              <button className="btn-add-primary" onClick={() => setStudentModalOpen(true)}>
                 <UserPlus size={18} />
-                <span>Onboard New Teacher</span>
+                <span>Enroll New Student</span>
               </button>
             </div>
 
-            {teacherMsg && (
-              <div className="alert-banner-success">
-                <CheckCircle2 size={18} />
-                <span>{teacherMsg}</span>
-              </div>
-            )}
-
-            {/* Filter and Search Bar */}
+            {/* Filter Bar */}
             <div className="table-filter-bar glass-panel">
               <div className="search-input-box">
                 <Search size={18} />
                 <input
                   type="text"
-                  placeholder="Search faculty by name, ID, or subject..."
+                  placeholder="Search students by name, ID, or parent..."
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && loadStudentsData()}
+                />
+              </div>
+
+              <div className="filter-select-box">
+                <Filter size={16} />
+                <select
+                  value={studentCountryFilter}
+                  onChange={(e) => setStudentCountryFilter(e.target.value)}
+                >
+                  <option value="ALL">All GCC Countries</option>
+                  {GCC_COUNTRIES_LIST.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <button className="btn-filter-apply" onClick={loadStudentsData}>Apply Filters</button>
+            </div>
+
+            {/* Students Table */}
+            <div className="data-table-container glass-panel">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Student ID & Name</th>
+                    <th>Grade & Section</th>
+                    <th>Campus & Country</th>
+                    <th>Biometric Gate Status</th>
+                    <th>Parent / Guardian</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {studentsList.map((st) => (
+                    <tr key={st.id}>
+                      <td>
+                        <div className="entity-cell">
+                          <div className="avatar-chip">
+                            {st.name.charAt(0)}
+                          </div>
+                          <div>
+                            <span className="entity-name">{st.name}</span>
+                            <span className="entity-sub">{st.id} • {st.nationality || 'GCC'}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="grade-pill">{st.grade} - Sec {st.section || 'A'}</span>
+                      </td>
+                      <td>
+                        <div className="campus-cell">
+                          <span>{st.campus}</span>
+                          <span className="country-sub">{st.country}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`status-pill ${st.attendance_status?.includes('Inside') || st.attendanceStatus?.includes('Inside') ? 'operational' : 'offline'}`}>
+                          <Fingerprint size={12} />
+                          {st.attendance_status || st.attendanceStatus || 'Checked Out'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="contact-cell">
+                          <span>👤 {st.parent_name || st.parentName || 'Guardian'}</span>
+                          <span>📞 {st.parent_phone || st.parentPhone || '+971 5000000'}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <button
+                          className="btn-action-icon delete"
+                          onClick={() => handleDeleteStudent(st.id, st.name)}
+                          title="Remove student record"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 3: TEACHERS & FACULTY (DEDICATED TAB)                  */}
+        {/* ========================================================= */}
+        {activeTab === 'teachers' && (
+          <div className="tab-pane-container">
+            <div className="section-header-flex">
+              <div>
+                <h2>👨‍🏫 Faculty & Teachers Registry</h2>
+                <p>Showing <strong>{teachersTotal} certified educators</strong> with assigned biometric thumb credentials.</p>
+              </div>
+              <button className="btn-add-primary" onClick={() => { setEditingTeacher(null); setTeacherModalOpen(true); }}>
+                <UserPlus size={18} />
+                <span>Onboard New Teacher</span>
+              </button>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="table-filter-bar glass-panel">
+              <div className="search-input-box">
+                <Search size={18} />
+                <input
+                  type="text"
+                  placeholder="Search faculty by name, discipline, or ID..."
                   value={teacherSearch}
                   onChange={(e) => setTeacherSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && loadTeachers()}
+                  onKeyDown={(e) => e.key === 'Enter' && loadTeachersData()}
                 />
               </div>
 
@@ -472,9 +1049,7 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                 <Filter size={16} />
                 <select
                   value={teacherSubjectFilter}
-                  onChange={(e) => {
-                    setTeacherSubjectFilter(e.target.value);
-                  }}
+                  onChange={(e) => setTeacherSubjectFilter(e.target.value)}
                 >
                   <option value="ALL">All Disciplines</option>
                   <option value="Mathematics">Mathematics</option>
@@ -485,8 +1060,9 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                   <option value="Arabic & Islamic Studies">Arabic & Islamic Studies</option>
                   <option value="Computer Science & AI">Computer Science & AI</option>
                 </select>
-                <button className="btn-filter-apply" onClick={loadTeachers}>Filter</button>
               </div>
+
+              <button className="btn-filter-apply" onClick={loadTeachersData}>Apply Filter</button>
             </div>
 
             {/* Teachers Table */}
@@ -494,8 +1070,8 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Teacher Name</th>
-                    <th>Subject & Grade</th>
+                    <th>Teacher Name & ID</th>
+                    <th>Academic Subject</th>
                     <th>Campus & Country</th>
                     <th>Biometric Thumb ID</th>
                     <th>Contact Info</th>
@@ -506,9 +1082,17 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                   {teachersList.map((t) => (
                     <tr key={t.id}>
                       <td>
-                        <div className="teacher-cell-name">
-                          <span className="t-name">{t.name}</span>
-                          <span className="t-id">{t.id}</span>
+                        <div className="entity-cell">
+                          <img
+                            src={t.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80'}
+                            alt={t.name}
+                            className="avatar-img-table"
+                            onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80'; }}
+                          />
+                          <div>
+                            <span className="entity-name">{t.name}</span>
+                            <span className="entity-sub">{t.id} • {t.gender || 'Faculty'}</span>
+                          </div>
                         </div>
                       </td>
                       <td>
@@ -526,7 +1110,7 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                       <td>
                         <span className="thumb-id-pill">
                           <Fingerprint size={13} />
-                          {t.thumbprint_id || t.thumbprintId || 'FP-AUTO'}
+                          {t.thumbprint_id || t.thumbprintId || `FP-${t.id}`}
                         </span>
                       </td>
                       <td>
@@ -539,7 +1123,21 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                         <div className="table-actions">
                           <button
                             className="btn-action-icon edit"
-                            onClick={() => openEditTeacher(t)}
+                            onClick={() => {
+                              setEditingTeacher(t);
+                              setTeacherFormData({
+                                name: t.name,
+                                gender: t.gender || 'Female',
+                                subject: t.subject,
+                                grade: t.grade || 'Grade 9 - 12',
+                                campus: t.campus,
+                                country: t.country,
+                                nationality: t.nationality || 'Emirati',
+                                phone: t.phone || '',
+                                email: t.email || ''
+                              });
+                              setTeacherModalOpen(true);
+                            }}
                             title="Edit Teacher"
                           >
                             <Edit3 size={15} />
@@ -555,28 +1153,260 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                       </td>
                     </tr>
                   ))}
-                  {teachersList.length === 0 && (
-                    <tr>
-                      <td colSpan="6" className="empty-row">
-                        No teachers found matching your search.
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
-        {/* ======================================================== */}
-        {/* TAB 2: STUDENT MEALS & PARENT BROADCASTS (ADMIN MANAGED) */}
-        {/* ======================================================== */}
-        {activeTab === 'meals' && (
-          <div className="admin-section">
-            <div className="section-header-row">
+        {/* ========================================================= */}
+        {/* TAB 4: PARENTS & GUARDIANS (WITH PICTURES - DEDICATED)     */}
+        {/* ========================================================= */}
+        {activeTab === 'parents' && (
+          <div className="tab-pane-container">
+            <div className="section-header-flex">
               <div>
-                <h2>Student Nutrition & Parent Meal Broadcast System</h2>
-                <p>Plan weekly menus and dispatch instant dietary & nutritional updates to parents via SMS and Portal.</p>
+                <h2>👨‍👩‍👧‍👦 Parents & Legal Guardians Directory</h2>
+                <p>Showing <strong>{parentsTotal} registered parents</strong> with verified photo profiles, linked students, and alert subscriptions.</p>
+              </div>
+              <button className="btn-add-primary" onClick={() => setParentModalOpen(true)}>
+                <UserPlus size={18} />
+                <span>Register New Parent</span>
+              </button>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="table-filter-bar glass-panel">
+              <div className="search-input-box">
+                <Search size={18} />
+                <input
+                  type="text"
+                  placeholder="Search parents by name, linked student, or phone..."
+                  value={parentSearch}
+                  onChange={(e) => setParentSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && loadParentsData()}
+                />
+              </div>
+
+              <div className="filter-select-box">
+                <Filter size={16} />
+                <select
+                  value={parentCountryFilter}
+                  onChange={(e) => setParentCountryFilter(e.target.value)}
+                >
+                  <option value="ALL">All GCC Countries</option>
+                  {GCC_COUNTRIES_LIST.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <button className="btn-filter-apply" onClick={loadParentsData}>Apply Filter</button>
+            </div>
+
+            {/* Parents Cards & Table */}
+            <div className="data-table-container glass-panel">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Parent Photo & Name</th>
+                    <th>Relationship</th>
+                    <th>Linked Student Ward</th>
+                    <th>Campus & Country</th>
+                    <th>Contact Phone & Email</th>
+                    <th>Meal Alerts Channel</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parentsList.map((p) => (
+                    <tr key={p.id}>
+                      <td>
+                        <div className="entity-cell">
+                          <img
+                            src={p.avatar || SAMPLE_PARENT_AVATARS[0]}
+                            alt={p.name}
+                            className="avatar-img-table parent-photo"
+                            onError={(e) => { e.target.src = SAMPLE_PARENT_AVATARS[1]; }}
+                          />
+                          <div>
+                            <span className="entity-name">{p.name}</span>
+                            <span className="entity-sub">{p.id}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="role-pill-badge">{p.relationship || 'Guardian'}</span>
+                      </td>
+                      <td>
+                        <div className="student-linked-cell">
+                          <strong>{p.student_name || p.studentName || 'Student Ward'}</strong>
+                          <span className="grade-sub">{p.student_grade || p.studentGrade || 'Grade 9'} • {p.student_id || p.studentId || 'GCC-STU'}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="campus-cell">
+                          <span>{p.campus}</span>
+                          <span className="country-sub">{p.country}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="contact-cell">
+                          <span><Phone size={12} /> {p.phone}</span>
+                          <span><Mail size={12} /> {p.email}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="status-pill operational">
+                          <CheckCircle2 size={12} />
+                          {p.preferred_channel || p.preferredChannel || 'WhatsApp & SMS'}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className="btn-action-icon delete"
+                          onClick={() => handleDeleteParent(p.id, p.name)}
+                          title="Remove parent profile"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 5: ROLE COMPARISON MATRIX (ADMIN VS SUPER ADMIN)       */}
+        {/* ========================================================= */}
+        {activeTab === 'roles' && (
+          <div className="tab-pane-container">
+            <div className="roles-matrix-wrapper">
+              <div className="section-header-row">
+                <div>
+                  <h2>🛡️ Security & Role Governance Matrix</h2>
+                  <p>Comprehensive architectural breakdown between <strong>Campus Administrator</strong> and <strong>GCC Super Admin</strong> roles.</p>
+                </div>
+              </div>
+
+              {/* Side-by-side Role Comparison Cards */}
+              <div className="role-comparison-cards">
+                {/* CAMPUS ADMIN CARD */}
+                <div className={`role-spec-card glass-panel ${!isSuperadmin ? 'highlighted-active' : ''}`}>
+                  <div className="card-top-header emerald-bg">
+                    <ShieldAlert size={28} />
+                    <div>
+                      <h3>🎓 Campus Administrator</h3>
+                      <span>Operational Scope: Branch Level (Single Campus)</span>
+                    </div>
+                  </div>
+                  <div className="spec-body">
+                    <p className="spec-desc">
+                      Assigned to specific campus operations (e.g. Dubai, Riyadh, Manama, Kuwait City, Doha, or Muscat). Focuses on day-to-day student care, faculty coordination, and parent notifications.
+                    </p>
+                    <ul className="spec-checklist">
+                      <li><Check size={16} className="text-emerald" /> <strong>Student Enrollment:</strong> Enroll and update student profiles in designated branch.</li>
+                      <li><Check size={16} className="text-emerald" /> <strong>Faculty Supervision:</strong> Monitor local faculty schedules and assigned subjects.</li>
+                      <li><Check size={16} className="text-emerald" /> <strong>Meal Updates:</strong> Dispatch daily lunch menu notifications to local parents.</li>
+                      <li><Check size={16} className="text-emerald" /> <strong>Biometric Gate:</strong> Monitor student check-in / check-out at campus gates.</li>
+                      <li><Check size={16} className="text-emerald" /> <strong>PTM Appointments:</strong> Facilitate parent-teacher consultation booking slots.</li>
+                      <li className="spec-disabled"><X size={16} className="text-red" /> <strong>No Cross-Border Access:</strong> Cannot modify or view other countries' master records.</li>
+                      <li className="spec-disabled"><X size={16} className="text-red" /> <strong>No Admin Management:</strong> Cannot create, promote, or demote other administrators.</li>
+                      <li className="spec-disabled"><X size={16} className="text-red" /> <strong>No Infrastructure Control:</strong> Cannot configure Twilio API keys or purge audit trails.</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* SUPER ADMIN CARD */}
+                <div className={`role-spec-card glass-panel ${isSuperadmin ? 'highlighted-active gold-ring' : ''}`}>
+                  <div className="card-top-header gold-bg">
+                    <Crown size={28} />
+                    <div>
+                      <h3>👑 Regional Super Admin</h3>
+                      <span>Executive Scope: Pan-GCC Multi-Country Sovereign</span>
+                    </div>
+                  </div>
+                  <div className="spec-body">
+                    <p className="spec-desc">
+                      Possesses ultimate authority over the entire GCC International School network across the UAE, Saudi Arabia, Bahrain, Kuwait, Qatar, and Oman. Full database and cryptographic authority.
+                    </p>
+                    <ul className="spec-checklist">
+                      <li><Check size={16} className="text-gold" /> <strong>Multi-Campus Sovereignty:</strong> Unrestricted master CRUD across all 6 countries.</li>
+                      <li><Check size={16} className="text-gold" /> <strong>Admin Provisioning:</strong> Create, promote, suspend, or revoke Campus Admin accounts.</li>
+                      <li><Check size={16} className="text-gold" /> <strong>Pan-GCC Emergency Broadcasts:</strong> Dispatch multi-country SMS / WhatsApp alerts.</li>
+                      <li><Check size={16} className="text-gold" /> <strong>Twilio & WhatsApp Gateways:</strong> Modify API keys, Webhooks, and SMS sender IDs.</li>
+                      <li><Check size={16} className="text-gold" /> <strong>Full Database Master Access:</strong> Direct SQL migration, backup export, and record recovery.</li>
+                      <li><Check size={16} className="text-gold" /> <strong>Biometric Protocol Overrides:</strong> Global security lockdown and gate bypass authorization.</li>
+                      <li><Check size={16} className="text-gold" /> <strong>Audit Trail Transparency:</strong> Inspect immutable timestamped security access logs.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Comparative Feature Matrix Table */}
+              <div className="matrix-table-card glass-panel">
+                <h3>Detailed Capabilities Matrix</h3>
+                <table className="admin-table matrix-table">
+                  <thead>
+                    <tr>
+                      <th>Feature & Governance Capability</th>
+                      <th>🎓 Campus Administrator</th>
+                      <th>👑 Regional Super Admin</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>Multi-Country Scope</strong></td>
+                      <td>Single Campus Assigned</td>
+                      <td><span className="text-gold font-bold">All 6 GCC Nations (Global)</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Student & Teacher Directory</strong></td>
+                      <td>Local Branch Only</td>
+                      <td><span className="text-gold font-bold">Full Database CRUD</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Parents & Guardian Registry</strong></td>
+                      <td>Campus Parents Only</td>
+                      <td><span className="text-gold font-bold">Pan-GCC Master Roster</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Daily Meal Notification Dispatch</strong></td>
+                      <td>Campus Broadcast</td>
+                      <td><span className="text-gold font-bold">Multi-Campus Simultaneous Blast</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>SMS & WhatsApp Gateway Keys (Twilio)</strong></td>
+                      <td><span className="text-red">❌ Locked</span></td>
+                      <td><span className="text-gold font-bold">👑 Full Gateway Master Config</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Create / Revoke Admin Credentials</strong></td>
+                      <td><span className="text-red">❌ Forbidden</span></td>
+                      <td><span className="text-gold font-bold">👑 Unlimited Provisioning</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Security Audit Log Purge / Inspection</strong></td>
+                      <td>Read-only Local</td>
+                      <td><span className="text-gold font-bold">Full Cryptographic Audit</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 6: MEAL BROADCASTS & MENUS                             */}
+        {/* ========================================================= */}
+        {activeTab === 'meals' && (
+          <div className="tab-pane-container">
+            <div className="section-header-flex">
+              <div>
+                <h2>🍱 Student Nutrition & Daily Meal Broadcasts</h2>
+                <p>Send instant SMS & WhatsApp notifications to parents with today's Halal-certified menu and dietary facts.</p>
               </div>
             </div>
 
@@ -587,176 +1417,75 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
               </div>
             )}
 
-            <div className="meals-grid-layout">
-              {/* Left Column: Parent Broadcast Dispatcher */}
-              <div className="broadcast-card glass-panel">
-                <div className="broadcast-header">
-                  <div className="icon-circle gold">
-                    <Send size={20} />
-                  </div>
-                  <div>
-                    <h3>Dispatch Meal Update to Parents</h3>
-                    <p>Sends official SMS & App notification to parent contacts.</p>
-                  </div>
-                </div>
-
-                <div className="broadcast-form">
-                  <div className="form-group">
-                    <label>Target Academic Campus</label>
-                    <select
-                      value={broadcastTarget}
-                      onChange={(e) => setBroadcastTarget(e.target.value)}
-                      className="admin-input"
-                    >
-                      <option value="ALL Campuses">All GCC Campuses (1,240 Parents)</option>
-                      <option value="Dubai Academic City Campus (UAE)">Dubai Campus (UAE - 310 Parents)</option>
-                      <option value="Riyadh Diplomatic Quarter Campus (KSA)">Riyadh Campus (KSA - 320 Parents)</option>
-                      <option value="Bahrain International Campus (Manama)">Manama Campus (Bahrain - 240 Parents)</option>
-                      <option value="Kuwait City Campus">Kuwait Campus (Kuwait - 210 Parents)</option>
-                      <option value="Doha Education City Campus (Qatar)">Doha Campus (Qatar - 160 Parents)</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Selected Meal Day</label>
-                    <div className="day-pill-selector">
-                      {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'].map((day) => (
-                        <button
-                          key={day}
-                          type="button"
-                          className={`day-btn ${selectedDay === day ? 'active' : ''}`}
-                          onClick={() => handleDaySelect(day)}
-                        >
-                          {day}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {currentEditMenu && (
-                    <div className="meal-preview-box">
-                      <div className="preview-tag">Previewing {currentEditMenu.day} Menu</div>
-                      <div className="preview-theme">Theme: <strong>{currentEditMenu.theme}</strong></div>
-                      <div className="preview-items">
-                        <div><strong>Breakfast:</strong> {currentEditMenu.breakfast?.main || 'Oats & Fruits'}</div>
-                        <div><strong>Lunch:</strong> {currentEditMenu.lunch?.main || 'Chicken & Rice'}</div>
-                        <div><strong>Nutrition:</strong> {currentEditMenu.lunch?.calories || '620 kcal'} • 100% Halal Certified</div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="form-group">
-                    <label>Dietary Advisory / Custom Notice to Parents</label>
-                    <textarea
-                      rows="3"
-                      className="admin-textarea"
-                      value={customDietaryNotice}
-                      onChange={(e) => setCustomDietaryNotice(e.target.value)}
-                      placeholder="Special note regarding allergens, hydration, fresh organic ingredients..."
-                    />
-                  </div>
-
-                  <button
-                    className="btn-dispatch-broadcast"
-                    onClick={handleBroadcastMealToParents}
-                    disabled={broadcastLoading}
+            <div className="broadcast-composer-grid">
+              <div className="broadcast-config-card glass-panel">
+                <h3>🚀 Dispatch Meal Update to Parents</h3>
+                <div className="form-group">
+                  <label>Select Target Campuses</label>
+                  <select
+                    className="admin-input"
+                    value={broadcastTarget}
+                    onChange={(e) => setBroadcastTarget(e.target.value)}
                   >
-                    {broadcastLoading ? (
-                      <span>Dispatching to Parent Mobile Phones...</span>
-                    ) : (
-                      <>
-                        <Send size={18} />
-                        <span>Broadcast Meal Update to Parents</span>
-                      </>
-                    )}
-                  </button>
+                    <option value="ALL Campuses">All 6 GCC Campuses ({parentsTotal} Parents)</option>
+                    <option value="Dubai Academic City Campus (UAE)">Dubai Academic City Campus (UAE)</option>
+                    <option value="Riyadh Diplomatic Quarter Campus (KSA)">Riyadh Diplomatic Quarter Campus (KSA)</option>
+                    <option value="Bahrain International Campus (Manama)">Bahrain International Campus (Manama)</option>
+                    <option value="Kuwait City Campus">Kuwait City Campus</option>
+                    <option value="Doha Education City Campus (Qatar)">Doha Education City Campus (Qatar)</option>
+                    <option value="Muscat Knowledge Oasis Campus (Oman)">Muscat Knowledge Oasis Campus (Oman)</option>
+                  </select>
                 </div>
-              </div>
 
-              {/* Right Column: Menu Day Editor & History */}
-              <div className="menu-editor-column">
-                {currentEditMenu && (
-                  <div className="menu-editor-card glass-panel">
-                    <div className="card-top-action">
-                      <h3>Edit {currentEditMenu.day} Nutritional Data</h3>
-                      <button className="btn-save-inline" onClick={handleSaveMenu}>
-                        <Save size={15} /> Save Changes
-                      </button>
-                    </div>
-
-                    <div className="form-row">
-                      <div className="form-group flex-1">
-                        <label>Day Theme</label>
-                        <input
-                          type="text"
-                          className="admin-input"
-                          value={currentEditMenu.theme}
-                          onChange={(e) => setCurrentEditMenu({ ...currentEditMenu, theme: e.target.value })}
-                        />
-                      </div>
-                      <div className="form-group flex-1">
-                        <label>Calories</label>
-                        <input
-                          type="text"
-                          className="admin-input"
-                          value={currentEditMenu.lunch?.calories || ''}
-                          onChange={(e) => setCurrentEditMenu({
-                            ...currentEditMenu,
-                            lunch: { ...currentEditMenu.lunch, calories: e.target.value }
-                          })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="form-group">
-                      <label>Breakfast Dish</label>
-                      <input
-                        type="text"
-                        className="admin-input"
-                        value={currentEditMenu.breakfast?.main || ''}
-                        onChange={(e) => setCurrentEditMenu({
-                          ...currentEditMenu,
-                          breakfast: { ...currentEditMenu.breakfast, main: e.target.value }
-                        })}
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label>Lunch Dish</label>
-                      <input
-                        type="text"
-                        className="admin-input"
-                        value={currentEditMenu.lunch?.main || ''}
-                        onChange={(e) => setCurrentEditMenu({
-                          ...currentEditMenu,
-                          lunch: { ...currentEditMenu.lunch, main: e.target.value }
-                        })}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Broadcast History Log */}
-                <div className="history-card glass-panel">
-                  <div className="history-title">
-                    <Clock size={16} /> Recent Parent Meal Broadcasts
-                  </div>
-                  <div className="history-list">
-                    {mealHistory.map((h, i) => (
-                      <div key={h.id || i} className="history-item">
-                        <div className="h-left">
-                          <span className="h-day">{h.day} Meal Update</span>
-                          <span className="h-campus">{h.target_campus || h.targetCampus}</span>
-                        </div>
-                        <div className="h-right">
-                          <span className="h-recipients">{h.recipients_count || h.recipientsCount} Parents Notified</span>
-                          <span className="h-status">{h.status || 'Delivered'}</span>
-                        </div>
-                      </div>
+                <div className="form-group">
+                  <label>Day of the Week</label>
+                  <select
+                    className="admin-input"
+                    value={selectedDay}
+                    onChange={(e) => {
+                      setSelectedDay(e.target.value);
+                      const m = menuDays.find(d => d.day.toLowerCase() === e.target.value.toLowerCase());
+                      if (m) setCurrentEditMenu(m);
+                    }}
+                  >
+                    {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'].map(d => (
+                      <option key={d} value={d}>{d}</option>
                     ))}
-                    {mealHistory.length === 0 && (
-                      <div className="history-empty">No recent broadcasts recorded. Broadcasts will appear here.</div>
-                    )}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Dietary & Allergen Notice</label>
+                  <textarea
+                    className="admin-input"
+                    rows={3}
+                    value={customDietaryNotice}
+                    onChange={(e) => setCustomDietaryNotice(e.target.value)}
+                  />
+                </div>
+
+                <button
+                  className="btn-admin-submit gold-glow"
+                  onClick={handleSendBroadcast}
+                  disabled={broadcastLoading}
+                >
+                  <Send size={18} />
+                  <span>{broadcastLoading ? 'Broadcasting to Parents...' : 'Broadcast Daily Menu via SMS & WhatsApp'}</span>
+                </button>
+              </div>
+
+              {/* Live Preview Card */}
+              <div className="broadcast-preview-card glass-panel">
+                <h3>📱 Parent Phone Live Preview</h3>
+                <div className="phone-mockup">
+                  <div className="phone-screen">
+                    <div className="sms-bubble">
+                      <strong>🍽️ GCC International Schools Daily Meal</strong>
+                      <p>Dear Parent, today's lunch for your student at <em>{broadcastTarget}</em>:</p>
+                      <p><strong>Main:</strong> {currentEditMenu?.lunch?.dish || 'Fresh Oven Roasted Herb Chicken with Turmeric Rice'}</p>
+                      <p><strong>Allergens:</strong> {currentEditMenu?.lunch?.allergens?.join(', ') || 'Halal Certified, Nut-Free'}</p>
+                      <p className="sms-meta">Sent via Automated Parent Dispatch • 100% Halal</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -764,68 +1493,15 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
           </div>
         )}
 
-        {/* ======================================= */}
-        {/* TAB 3: BIOMETRIC LOGS                   */}
-        {/* ======================================= */}
-        {activeTab === 'biometrics' && (
-          <div className="admin-section">
-            <div className="section-header-row">
-              <div>
-                <h2>Live Biometric Attendance Portal Scans</h2>
-                <p>Audited thumbprint scans from North & South gate terminals across GCC campuses.</p>
-              </div>
-            </div>
-
-            <div className="data-table-container glass-panel">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Log ID</th>
-                    <th>Person Name</th>
-                    <th>Role</th>
-                    <th>Details</th>
-                    <th>Event</th>
-                    <th>Timestamp</th>
-                    <th>Terminal</th>
-                    <th>Campus</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bioLogs.map((log) => (
-                    <tr key={log.id}>
-                      <td><span className="t-id">{log.id}</span></td>
-                      <td><strong>{log.name}</strong></td>
-                      <td>
-                        <span className={`role-pill ${log.role === 'Teacher' ? 'faculty' : 'student'}`}>
-                          {log.role}
-                        </span>
-                      </td>
-                      <td>{log.details}</td>
-                      <td>
-                        <span className={`event-pill ${log.eventType === 'TIME_IN' || log.event_type === 'TIME_IN' ? 'in' : 'out'}`}>
-                          {log.eventType || log.event_type}
-                        </span>
-                      </td>
-                      <td>{log.timestamp}</td>
-                      <td>{log.terminal}</td>
-                      <td>{log.campus}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ======================================= */}
-        {/* TAB 4: CAMPUS NEWS                      */}
-        {/* ======================================= */}
+        {/* ========================================================= */}
+        {/* TAB 7: CAMPUS NEWS & ANNOUNCEMENTS                         */}
+        {/* ========================================================= */}
         {activeTab === 'news' && (
-          <div className="admin-section">
-            <div className="section-header-row">
+          <div className="tab-pane-container">
+            <div className="section-header-flex">
               <div>
-                <h2>Campus Announcements & News Publisher</h2>
-                <p>Publish official academic notices, events, and STEM tournament victories.</p>
+                <h2>📰 Campus Bulletins & News Center</h2>
+                <p>Publish news, STEM accolades, and GCC event highlights to the student and parent portal.</p>
               </div>
             </div>
 
@@ -836,19 +1512,18 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
               </div>
             )}
 
-            <div className="news-admin-grid">
-              {/* News Publisher Form */}
-              <form onSubmit={handlePublishNews} className="news-form-card glass-panel">
-                <h3>Draft Announcement</h3>
+            <div className="news-management-grid">
+              <form onSubmit={handleCreateNews} className="news-form glass-panel">
+                <h3>Post New Announcement</h3>
                 <div className="form-group">
-                  <label>Headline</label>
+                  <label>Article Headline *</label>
                   <input
                     type="text"
+                    required
                     className="admin-input"
-                    placeholder="e.g. GCC Robotics Championship 2026 Winners"
+                    placeholder="e.g. GCC Robotics Team Triumphs in Dubai..."
                     value={newsTitle}
                     onChange={(e) => setNewsTitle(e.target.value)}
-                    required
                   />
                 </div>
 
@@ -861,62 +1536,62 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                       onChange={(e) => setNewsCategory(e.target.value)}
                     >
                       <option>STEM & Innovation</option>
-                      <option>Academic Notice</option>
                       <option>Sports & Athletics</option>
-                      <option>Cultural Arts</option>
+                      <option>Academic Accolades</option>
+                      <option>Arts & Heritage</option>
+                      <option>Campus Life</option>
                     </select>
                   </div>
+
                   <div className="form-group flex-1">
-                    <label>Campus</label>
+                    <label>Target Hub</label>
                     <select
                       className="admin-input"
                       value={newsCampus}
                       onChange={(e) => setNewsCampus(e.target.value)}
                     >
                       <option>All GCC Campuses</option>
-                      <option>Dubai Campus (UAE)</option>
-                      <option>Riyadh Campus (KSA)</option>
-                      <option>Manama Campus (Bahrain)</option>
-                      <option>Kuwait City Campus</option>
+                      {GCC_CAMPUSES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label>Content</label>
+                  <label>Article Body Content *</label>
                   <textarea
-                    rows="4"
-                    className="admin-textarea"
-                    placeholder="Write announcement body..."
+                    required
+                    rows={4}
+                    className="admin-input"
+                    placeholder="Provide full description of the accomplishment or announcement..."
                     value={newsContent}
                     onChange={(e) => setNewsContent(e.target.value)}
-                    required
                   />
                 </div>
 
                 <button type="submit" className="btn-add-primary">
-                  <Newspaper size={16} /> Broadcast Announcement
+                  <Send size={16} />
+                  <span>Publish Announcement</span>
                 </button>
               </form>
 
-              {/* News List */}
-              <div className="news-items-list glass-panel">
-                <h3>Published News Articles ({newsList.length})</h3>
-                <div className="news-scroll-list">
-                  {newsList.map((n) => (
-                    <div key={n.id} className="news-admin-item">
-                      <div className="n-info">
-                        <h4>{n.title}</h4>
-                        <div className="n-meta">
-                          <span>{n.category}</span> • <span>{n.campus}</span> • <span>{n.date}</span>
-                        </div>
+              {/* Published News List */}
+              <div className="news-cards-list glass-panel">
+                <h3>Live Bulletins ({newsList.length})</h3>
+                <div className="articles-scroll">
+                  {newsList.map(a => (
+                    <div key={a.id} className="news-item-row">
+                      <img src={a.cover_image || a.coverImage} alt={a.title} className="news-thumb" />
+                      <div className="news-item-content">
+                        <span className="news-cat-pill">{a.category}</span>
+                        <h4>{a.title}</h4>
+                        <span className="news-campus-sub">{a.campus}</span>
                       </div>
                       <button
                         className="btn-action-icon delete"
-                        onClick={() => handleDeleteNews(n.id)}
-                        title="Delete Article"
+                        onClick={() => handleDeleteNews(a.id)}
+                        title="Delete announcement"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   ))}
@@ -926,15 +1601,63 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
           </div>
         )}
 
-        {/* ======================================= */}
-        {/* TAB 5: PTM BOOKINGS                     */}
-        {/* ======================================= */}
-        {activeTab === 'ptm' && (
-          <div className="admin-section">
-            <div className="section-header-row">
+        {/* ========================================================= */}
+        {/* TAB 8: BIOMETRIC GATE LOGS                                 */}
+        {/* ========================================================= */}
+        {activeTab === 'biometrics' && (
+          <div className="tab-pane-container">
+            <div className="section-header-flex">
               <div>
-                <h2>Parent-Teacher Meeting (PTM) Consultations</h2>
-                <p>Appointments booked by parents verified through encrypted SMS OTP.</p>
+                <h2>🖐️ Live Biometric Gate & Attendance Logs</h2>
+                <p>Real-time audit log of student & faculty thumbprint scans at campus entry/exit points.</p>
+              </div>
+            </div>
+
+            <div className="data-table-container glass-panel">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Log ID & Timestamp</th>
+                    <th>Individual Scanned</th>
+                    <th>Role</th>
+                    <th>Action</th>
+                    <th>Terminal / Gate</th>
+                    <th>Campus</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bioLogs.slice(0, 20).map((log, idx) => (
+                    <tr key={log.id || idx}>
+                      <td>
+                        <span className="entity-name">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : 'Recent Scan'}</span>
+                        <span className="entity-sub">{log.id || `LOG-${idx + 1}`}</span>
+                      </td>
+                      <td><strong>{log.name || log.student_name}</strong></td>
+                      <td><span className="role-pill-badge">{log.role || 'Student'}</span></td>
+                      <td>
+                        <span className={`status-pill ${log.action?.includes('In') ? 'operational' : 'offline'}`}>
+                          {log.action || 'Time In'}
+                        </span>
+                      </td>
+                      <td>{log.terminal || 'Terminal 1 - Main Turnstile'}</td>
+                      <td>{log.campus || 'Dubai Academic City'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 9: PTM CONSULTATIONS                                   */}
+        {/* ========================================================= */}
+        {activeTab === 'ptm' && (
+          <div className="tab-pane-container">
+            <div className="section-header-flex">
+              <div>
+                <h2>📅 Parent-Teacher Consultation (PTM) Roster</h2>
+                <p>Active 1-on-1 parent appointments verified via SMS One-Time Passcode (OTP).</p>
               </div>
             </div>
 
@@ -943,26 +1666,30 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                 <thead>
                   <tr>
                     <th>Booking Ref</th>
-                    <th>Parent Name</th>
-                    <th>Student Name</th>
-                    <th>Faculty Member</th>
-                    <th>Date & Slot</th>
-                    <th>Phone (SMS Verified)</th>
+                    <th>Teacher</th>
+                    <th>Student Ward</th>
+                    <th>Parent Guardian</th>
+                    <th>Date & Time Slot</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ptmBookings.map((b) => (
-                    <tr key={b.booking_id || b.bookingId}>
-                      <td><span className="t-id">{b.booking_id || b.bookingId}</span></td>
-                      <td><strong>{b.parent_name || b.parentName}</strong></td>
-                      <td>{b.student_name || b.studentName}</td>
-                      <td>{b.teacher_name || b.teacherName}</td>
-                      <td>{b.date} • {b.time_slot || b.timeSlot}</td>
-                      <td>{b.phone}</td>
+                    <tr key={b.bookingId || b.booking_id}>
+                      <td><strong>{b.bookingId || b.booking_id}</strong></td>
+                      <td>{b.teacherName || b.teacher_name} ({b.subject})</td>
+                      <td>{b.studentName || b.student_name}</td>
                       <td>
-                        <span className="status-confirmed-pill">
-                          <CheckCircle2 size={13} /> {b.status || 'Confirmed'}
+                        <span>{b.parentName || b.parent_name}</span>
+                        <span className="entity-sub">{b.phone}</span>
+                      </td>
+                      <td>
+                        <strong>{b.date}</strong>
+                        <span className="entity-sub">{b.timeSlot || b.time_slot}</span>
+                      </td>
+                      <td>
+                        <span className="status-pill operational">
+                          <CheckCircle2 size={12} /> {b.status || 'Confirmed'}
                         </span>
                       </td>
                     </tr>
@@ -973,15 +1700,15 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
           </div>
         )}
 
-        {/* ======================================= */}
-        {/* TAB 6: SUPERADMIN ACCESS CONTROL        */}
-        {/* ======================================= */}
+        {/* ========================================================= */}
+        {/* TAB 10: SUPERADMIN GOVERNANCE (RESTRICTED)                 */}
+        {/* ========================================================= */}
         {activeTab === 'superadmin' && isSuperadmin && (
-          <div className="admin-section">
-            <div className="section-header-row">
+          <div className="tab-pane-container">
+            <div className="section-header-flex">
               <div>
-                <h2>Superadmin Central Governance & Access Control</h2>
-                <p>Grant administrative clearance, manage roles, and review security audit logs.</p>
+                <h2>👑 Superadmin Security & Admin Management</h2>
+                <p>Provision and govern Campus Administrator accounts across all GCC regions.</p>
               </div>
             </div>
 
@@ -993,135 +1720,243 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
             )}
 
             <div className="superadmin-grid">
-              {/* Provision Admin Form */}
+              {/* Form to provision new Admin */}
               <form onSubmit={handleCreateAdmin} className="superadmin-card glass-panel">
-                <h3>Provision Administrator Account</h3>
+                <h3>Provision New Administrator</h3>
                 <div className="form-group">
-                  <label>Full Name</label>
+                  <label>Full Name *</label>
                   <input
                     type="text"
+                    required
                     className="admin-input"
+                    placeholder="e.g. Dr. Tariq Al-Hashimi"
                     value={newAdminForm.fullName}
                     onChange={(e) => setNewAdminForm({ ...newAdminForm, fullName: e.target.value })}
-                    placeholder="e.g. Tariq Al-Hashimi"
-                    required
                   />
                 </div>
 
                 <div className="form-row">
                   <div className="form-group flex-1">
-                    <label>Username</label>
+                    <label>Username *</label>
                     <input
                       type="text"
+                      required
                       className="admin-input"
+                      placeholder="e.g. admin_manama"
                       value={newAdminForm.username}
                       onChange={(e) => setNewAdminForm({ ...newAdminForm, username: e.target.value })}
-                      placeholder="e.g. thashimi"
-                      required
                     />
                   </div>
+
                   <div className="form-group flex-1">
-                    <label>Role</label>
+                    <label>Assigned Role *</label>
                     <select
                       className="admin-input"
                       value={newAdminForm.role}
                       onChange={(e) => setNewAdminForm({ ...newAdminForm, role: e.target.value })}
                     >
-                      <option value="admin">Campus Admin</option>
-                      <option value="superadmin">Regional Superadmin</option>
+                      <option value="admin">Campus Administrator (Branch Scope)</option>
+                      <option value="superadmin">Regional Super Admin (Full GCC Scope)</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label>Official Email</label>
+                  <label>Official Email *</label>
                   <input
                     type="email"
+                    required
                     className="admin-input"
+                    placeholder="admin@gccschools.edu"
                     value={newAdminForm.email}
                     onChange={(e) => setNewAdminForm({ ...newAdminForm, email: e.target.value })}
-                    placeholder="admin@gccschools.edu"
-                    required
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Temporary Password (Bcrypt Encrypted)</label>
+                  <label>Initial Secure Password *</label>
                   <input
                     type="password"
+                    required
                     className="admin-input"
+                    placeholder="Min 8 characters (e.g. GCC2026!Secure)"
                     value={newAdminForm.password}
                     onChange={(e) => setNewAdminForm({ ...newAdminForm, password: e.target.value })}
-                    placeholder="Minimum 8 characters with symbols"
-                    required
                   />
                 </div>
 
-                <button type="submit" className="btn-add-primary">
-                  <Lock size={16} /> Create Administrator Account
+                <button type="submit" className="btn-admin-submit gold-glow">
+                  <ShieldCheck size={18} />
+                  <span>Create Admin Account</span>
                 </button>
               </form>
 
-              {/* Existing Admins List */}
-              <div className="superadmin-users-card glass-panel">
-                <h3>Authorized Administrators ({adminUsers.length})</h3>
-                <div className="admin-users-table-box">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>Administrator</th>
-                        <th>Role</th>
-                        <th>Email</th>
-                        <th>Created</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {adminUsers.map((u) => (
-                        <tr key={u.id}>
-                          <td>
-                            <strong>{u.full_name || u.username}</strong>
-                            <div className="t-id">@{u.username}</div>
-                          </td>
-                          <td>
-                            <span className={`role-badge ${u.role === 'superadmin' ? 'role-superadmin' : 'role-admin'}`}>
-                              {u.role.toUpperCase()}
-                            </span>
-                          </td>
-                          <td>{u.email}</td>
-                          <td>{new Date(u.created_at).toLocaleDateString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {/* Active Admin Accounts Roster */}
+              <div className="superadmin-card glass-panel">
+                <h3>Provisioned Administrators ({adminUsers.length})</h3>
+                <div className="admin-users-list">
+                  {adminUsers.map(u => (
+                    <div key={u.id} className="admin-user-row">
+                      <div className="user-icon-badge">
+                        {u.role === 'superadmin' ? '👑' : '🛡️'}
+                      </div>
+                      <div className="user-text">
+                        <strong>{u.full_name || u.username}</strong>
+                        <span>{u.email} • Role: <em>{u.role}</em></span>
+                      </div>
+                      <span className={`status-pill ${u.role === 'superadmin' ? 'gold' : 'operational'}`}>
+                        {u.role}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
         )}
-      </div>
+      </main>
 
-      {/* Teacher Add / Edit Modal */}
+      {/* ========================================================= */}
+      {/* 📝 MODAL: ENROLL NEW STUDENT                               */}
+      {/* ========================================================= */}
+      {studentModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-window glass-panel">
+            <div className="modal-header">
+              <h3>🎓 Enroll New Student</h3>
+              <button className="btn-close-modal" onClick={() => setStudentModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleEnrollStudent} className="modal-form">
+              <div className="form-row">
+                <div className="form-group flex-1">
+                  <label>Student Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    className="admin-input"
+                    placeholder="e.g. Khalid Al-Mutawa"
+                    value={studentFormData.name}
+                    onChange={(e) => setStudentFormData({ ...studentFormData, name: e.target.value })}
+                  />
+                </div>
+                <div className="form-group flex-1">
+                  <label>Gender</label>
+                  <select
+                    className="admin-input"
+                    value={studentFormData.gender}
+                    onChange={(e) => setStudentFormData({ ...studentFormData, gender: e.target.value })}
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group flex-1">
+                  <label>Grade Level *</label>
+                  <select
+                    className="admin-input"
+                    value={studentFormData.grade}
+                    onChange={(e) => setStudentFormData({ ...studentFormData, grade: e.target.value })}
+                  >
+                    {['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group flex-1">
+                  <label>Class Section</label>
+                  <input
+                    type="text"
+                    className="admin-input"
+                    placeholder="e.g. A"
+                    value={studentFormData.section}
+                    onChange={(e) => setStudentFormData({ ...studentFormData, section: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group flex-1">
+                  <label>Campus *</label>
+                  <select
+                    className="admin-input"
+                    value={studentFormData.campus}
+                    onChange={(e) => setStudentFormData({ ...studentFormData, campus: e.target.value })}
+                  >
+                    {GCC_CAMPUSES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="form-group flex-1">
+                  <label>Country *</label>
+                  <select
+                    className="admin-input"
+                    value={studentFormData.country}
+                    onChange={(e) => setStudentFormData({ ...studentFormData, country: e.target.value })}
+                  >
+                    {GCC_COUNTRIES_LIST.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group flex-1">
+                  <label>Parent / Guardian Name</label>
+                  <input
+                    type="text"
+                    className="admin-input"
+                    placeholder="e.g. Saud Al-Mutawa"
+                    value={studentFormData.parentName}
+                    onChange={(e) => setStudentFormData({ ...studentFormData, parentName: e.target.value })}
+                  />
+                </div>
+                <div className="form-group flex-1">
+                  <label>Parent Contact Phone</label>
+                  <input
+                    type="text"
+                    className="admin-input"
+                    placeholder="+971 501234567"
+                    value={studentFormData.parentPhone}
+                    onChange={(e) => setStudentFormData({ ...studentFormData, parentPhone: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="btn-cancel" onClick={() => setStudentModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn-add-primary">Complete Enrollment & Generate Thumb ID</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 📝 MODAL: ONBOARD / EDIT TEACHER                           */}
+      {/* ========================================================= */}
       {teacherModalOpen && (
         <div className="modal-backdrop">
-          <div className="modal-content-card glass-panel">
+          <div className="modal-window glass-panel">
             <div className="modal-header">
-              <h3>{editingTeacher ? `Edit Faculty: ${editingTeacher.name}` : 'Onboard New Teacher'}</h3>
+              <h3>{editingTeacher ? '✏️ Edit Faculty Record' : '👨‍🏫 Onboard New Teacher'}</h3>
               <button className="btn-close-modal" onClick={() => setTeacherModalOpen(false)}>
                 <X size={18} />
               </button>
             </div>
-
-            <form onSubmit={handleSaveTeacher} className="modal-body-form">
+            <form onSubmit={handleSaveTeacher} className="modal-form">
               <div className="form-row">
-                <div className="form-group flex-2">
-                  <label>Full Name</label>
+                <div className="form-group flex-1">
+                  <label>Full Name *</label>
                   <input
                     type="text"
+                    required
                     className="admin-input"
+                    placeholder="e.g. Sarah Al-Sabah"
                     value={teacherFormData.name}
                     onChange={(e) => setTeacherFormData({ ...teacherFormData, name: e.target.value })}
-                    placeholder="e.g. Dr. Mariam Al-Qasimi"
-                    required
                   />
                 </div>
                 <div className="form-group flex-1">
@@ -1131,65 +1966,60 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                     value={teacherFormData.gender}
                     onChange={(e) => setTeacherFormData({ ...teacherFormData, gender: e.target.value })}
                   >
-                    <option>Female</option>
-                    <option>Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Male">Male</option>
                   </select>
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group flex-1">
-                  <label>Primary Discipline / Subject</label>
-                  <input
-                    type="text"
+                  <label>Academic Subject *</label>
+                  <select
                     className="admin-input"
                     value={teacherFormData.subject}
                     onChange={(e) => setTeacherFormData({ ...teacherFormData, subject: e.target.value })}
-                    placeholder="e.g. Physics & Robotics"
-                    required
-                  />
+                  >
+                    <option value="Mathematics">Mathematics</option>
+                    <option value="Physics & Robotics">Physics & Robotics</option>
+                    <option value="Chemistry">Chemistry</option>
+                    <option value="Biology">Biology</option>
+                    <option value="English Literature">English Literature</option>
+                    <option value="Arabic & Islamic Studies">Arabic & Islamic Studies</option>
+                    <option value="Computer Science & AI">Computer Science & AI</option>
+                  </select>
                 </div>
                 <div className="form-group flex-1">
-                  <label>Assigned Grade</label>
+                  <label>Grade Level</label>
                   <input
                     type="text"
                     className="admin-input"
+                    placeholder="e.g. Grade 9 - 12"
                     value={teacherFormData.grade}
                     onChange={(e) => setTeacherFormData({ ...teacherFormData, grade: e.target.value })}
-                    placeholder="e.g. Grade 10 - 12"
                   />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group flex-1">
-                  <label>Campus</label>
+                  <label>Campus *</label>
                   <select
                     className="admin-input"
                     value={teacherFormData.campus}
                     onChange={(e) => setTeacherFormData({ ...teacherFormData, campus: e.target.value })}
                   >
-                    <option>Dubai Academic City Campus (UAE)</option>
-                    <option>Riyadh Diplomatic Quarter Campus (KSA)</option>
-                    <option>Bahrain International Campus (Manama)</option>
-                    <option>Kuwait City Campus</option>
-                    <option>Doha Education City Campus (Qatar)</option>
-                    <option>Muscat Knowledge Oasis Campus (Oman)</option>
+                    {GCC_CAMPUSES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="form-group flex-1">
-                  <label>Country</label>
+                  <label>Country *</label>
                   <select
                     className="admin-input"
                     value={teacherFormData.country}
                     onChange={(e) => setTeacherFormData({ ...teacherFormData, country: e.target.value })}
                   >
-                    <option>United Arab Emirates</option>
-                    <option>Saudi Arabia</option>
-                    <option>Bahrain</option>
-                    <option>Kuwait</option>
-                    <option>Qatar</option>
-                    <option>Oman</option>
+                    {GCC_COUNTRIES_LIST.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
               </div>
@@ -1200,30 +2030,187 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                   <input
                     type="text"
                     className="admin-input"
+                    placeholder="+971 501234567"
                     value={teacherFormData.phone}
                     onChange={(e) => setTeacherFormData({ ...teacherFormData, phone: e.target.value })}
-                    placeholder="+971 501234567"
                   />
                 </div>
                 <div className="form-group flex-1">
-                  <label>Faculty Email</label>
+                  <label>Official Email</label>
                   <input
                     type="email"
                     className="admin-input"
+                    placeholder="faculty@gccschools.edu"
                     value={teacherFormData.email}
                     onChange={(e) => setTeacherFormData({ ...teacherFormData, email: e.target.value })}
-                    placeholder="faculty@gccschools.edu"
                   />
                 </div>
               </div>
 
               <div className="modal-actions">
-                <button type="button" className="btn-cancel" onClick={() => setTeacherModalOpen(false)}>
-                  Cancel
-                </button>
+                <button type="button" className="btn-cancel" onClick={() => setTeacherModalOpen(false)}>Cancel</button>
                 <button type="submit" className="btn-add-primary">
-                  {editingTeacher ? 'Update Faculty Member' : 'Register Faculty & Assign Biometrics'}
+                  {editingTeacher ? 'Save Changes' : 'Register Faculty & Issue Biometrics'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 📝 MODAL: REGISTER PARENT (WITH PHOTO)                     */}
+      {/* ========================================================= */}
+      {parentModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-window glass-panel">
+            <div className="modal-header">
+              <h3>👨‍👩‍👧‍👦 Register Parent / Legal Guardian</h3>
+              <button className="btn-close-modal" onClick={() => setParentModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleRegisterParent} className="modal-form">
+              {/* Photo Preview & Avatar Selector */}
+              <div className="avatar-picker-section">
+                <label className="picker-label">Parent Photo Preview:</label>
+                <div className="picker-preview-row">
+                  <img
+                    src={parentFormData.avatar}
+                    alt="Selected Avatar"
+                    className="avatar-large-preview"
+                  />
+                  <div className="picker-options">
+                    <span className="picker-hint">Choose professional portrait:</span>
+                    <div className="avatar-thumbnails">
+                      {SAMPLE_PARENT_AVATARS.map((av, idx) => (
+                        <img
+                          key={idx}
+                          src={av}
+                          alt={`Avatar ${idx + 1}`}
+                          className={`thumb-choice ${parentFormData.avatar === av ? 'selected' : ''}`}
+                          onClick={() => setParentFormData({ ...parentFormData, avatar: av })}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group flex-1">
+                  <label>Parent Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    className="admin-input"
+                    placeholder="e.g. Fatima Al-Zahra"
+                    value={parentFormData.name}
+                    onChange={(e) => setParentFormData({ ...parentFormData, name: e.target.value })}
+                  />
+                </div>
+                <div className="form-group flex-1">
+                  <label>Relationship *</label>
+                  <select
+                    className="admin-input"
+                    value={parentFormData.relationship}
+                    onChange={(e) => setParentFormData({ ...parentFormData, relationship: e.target.value })}
+                  >
+                    <option value="Mother">Mother</option>
+                    <option value="Father">Father</option>
+                    <option value="Legal Guardian">Legal Guardian</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group flex-1">
+                  <label>Linked Student Ward Name</label>
+                  <input
+                    type="text"
+                    className="admin-input"
+                    placeholder="e.g. Zaid Al-Mutawa"
+                    value={parentFormData.studentName}
+                    onChange={(e) => setParentFormData({ ...parentFormData, studentName: e.target.value })}
+                  />
+                </div>
+                <div className="form-group flex-1">
+                  <label>Student Grade</label>
+                  <select
+                    className="admin-input"
+                    value={parentFormData.studentGrade}
+                    onChange={(e) => setParentFormData({ ...parentFormData, studentGrade: e.target.value })}
+                  >
+                    {['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group flex-1">
+                  <label>Contact Phone (WhatsApp) *</label>
+                  <input
+                    type="text"
+                    required
+                    className="admin-input"
+                    placeholder="+971 501234567"
+                    value={parentFormData.phone}
+                    onChange={(e) => setParentFormData({ ...parentFormData, phone: e.target.value })}
+                  />
+                </div>
+                <div className="form-group flex-1">
+                  <label>Email Address</label>
+                  <input
+                    type="email"
+                    className="admin-input"
+                    placeholder="parent@gccparents.com"
+                    value={parentFormData.email}
+                    onChange={(e) => setParentFormData({ ...parentFormData, email: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group flex-1">
+                  <label>Country *</label>
+                  <select
+                    className="admin-input"
+                    value={parentFormData.country}
+                    onChange={(e) => setParentFormData({ ...parentFormData, country: e.target.value })}
+                  >
+                    {GCC_COUNTRIES_LIST.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="form-group flex-1">
+                  <label>Campus *</label>
+                  <select
+                    className="admin-input"
+                    value={parentFormData.campus}
+                    onChange={(e) => setParentFormData({ ...parentFormData, campus: e.target.value })}
+                  >
+                    {GCC_CAMPUSES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Preferred Notifications Channel</label>
+                <select
+                  className="admin-input"
+                  value={parentFormData.preferredChannel}
+                  onChange={(e) => setParentFormData({ ...parentFormData, preferredChannel: e.target.value })}
+                >
+                  <option value="WhatsApp & SMS">WhatsApp & SMS (Recommended)</option>
+                  <option value="SMS Only">SMS Only</option>
+                  <option value="Email & Portal">Email & Portal</option>
+                </select>
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="btn-cancel" onClick={() => setParentModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn-add-primary">Save Parent Record to Database</button>
               </div>
             </form>
           </div>

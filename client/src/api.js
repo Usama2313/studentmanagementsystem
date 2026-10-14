@@ -134,11 +134,88 @@ export async function fetchMealHistory(token) {
 }
 
 // Students & Biometrics
+export async function fetchStats() {
+  const res = await fetch(`${API_BASE}/stats`);
+  return res.json();
+}
+
 export async function fetchStudents(params = {}) {
   const query = new URLSearchParams(params).toString();
   const res = await fetch(`${API_BASE}/students?${query}`);
   return res.json();
 }
+
+export async function createStudent(studentData, token) {
+  const res = await fetch(`${API_BASE}/admin/students`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify(studentData)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to enroll student');
+  return data;
+}
+
+export async function updateStudent(id, studentData, token) {
+  const res = await fetch(`${API_BASE}/admin/students/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify(studentData)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update student');
+  return data;
+}
+
+export async function deleteStudent(id, token) {
+  const res = await fetch(`${API_BASE}/admin/students/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(token)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to delete student');
+  return data;
+}
+
+// Parents Directory & Management
+export async function fetchParents(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  const res = await fetch(`${API_BASE}/parents?${query}`);
+  return res.json();
+}
+
+export async function createParent(parentData, token) {
+  const res = await fetch(`${API_BASE}/admin/parents`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify(parentData)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to register parent');
+  return data;
+}
+
+export async function updateParent(id, parentData, token) {
+  const res = await fetch(`${API_BASE}/admin/parents/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify(parentData)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update parent');
+  return data;
+}
+
+export async function deleteParent(id, token) {
+  const res = await fetch(`${API_BASE}/admin/parents/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(token)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to delete parent');
+  return data;
+}
+
 
 export async function scanBiometric(identifier, terminal) {
   const res = await fetch(`${API_BASE}/biometric/scan`, {

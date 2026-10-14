@@ -16,6 +16,7 @@ import {
   SUBJECTS,
   generateTeachers,
   generateStudents,
+  generateParents,
   INITIAL_NEWS,
   INITIAL_MENU
 } from './data.js';
@@ -60,11 +61,13 @@ const loginLimiter = rateLimit({
 // In-Memory fallback store if cloud connection ever drops
 let fallbackTeachers = generateTeachers();
 let fallbackStudents = generateStudents();
+let fallbackParents = generateParents(fallbackStudents);
 let fallbackNews = [...INITIAL_NEWS];
 let fallbackMenu = [...INITIAL_MENU];
 let fallbackLogs = [];
 let fallbackBookings = [];
 let fallbackMealAlerts = [];
+
 const pendingOtpStore = new Map();
 
 // Helper: JWT verification middleware for Admin and Superadmin
@@ -588,6 +591,323 @@ app.get('/api/students', async (req, res) => {
     });
   }
 });
+
+/**
+ * POST /api/admin/students (Admin enrolls new student)
+ */
+app.post(['/api/admin/students', '/api/students'], verifyAdminToken, async (req, res) => {
+  const { name, gender = 'Male', grade, section = 'A', campus, country, nationality, parentName, parentPhone, parentEmail } = req.body;
+
+  if (!name || !grade || !campus) {
+    return res.status(400).json({ error: 'Student name, grade, and campus are required.' });
+  }
+
+  const id = `GCC-STU-${Date.now().toString().slice(-4)}`;
+  const thumbprintId = `FP-STU-${Date.now().toString().slice(-4)}`;
+  const countryCode = country ? country.slice(0, 3).toUpperCase() : 'UAE';
+
+  const newStudent = {
+    id,
+    name,
+    gender,
+    grade,
+    section,
+    campus,
+    country: country || 'United Arab Emirates',
+    countryCode,
+    nationality: nationality || 'Emirati',
+    thumbprintId,
+    parentName: parentName || 'Parent Guardian',
+    parentPhone: parentPhone || '+971 5000000',
+    parentEmail: parentEmail || `parent.${id.toLowerCase()}@gccparents.com`,
+    attendanceStatus: 'Inside Campus (Checked In)',
+    timeIn: '08:00 AM',
+    timeOut: null
+  };
+
+  try {
+    await query(
+      `INSERT INTO students (id, name, gender, grade, section, campus, country, country_code, nationality, thumbprint_id, parent_name, parent_phone, parent_email, attendance_status, time_in)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+      [id, name, gender, grade, section, newStudent.country, countryCode, newStudent.nationality, thumbprintId, newStudent.parentName, newStudent.parentPhone, newStudent.parentEmail, newStudent.attendanceStatus, newStudent.timeIn]
+    );
+  } catch (err) {
+    console.log('Saved student to in-memory fallback store');
+  }
+
+  fallbackStudents.unshift(newStudent);
+
+  // Also auto-link or create parent in parents table
+  const newParent = {
+    id: `PRN-${Date.now().toString().slice(-4)}`,
+    name: newStudent.parentName,
+    phone: newStudent.parentPhone,
+    email: newStudent.parentEmail,
+    country: newStudent.country,
+    countryCode,
+    campus: newStudent.campus,
+    nationality: newStudent.nationality,
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&h=200&q=80',
+    studentId: newStudent.id,
+    studentName: newStudent.name,
+    studentGrade: newStudent.grade,
+    relationship: 'Parent / Guardian',
+    notificationsEnabled: true,
+    preferredChannel: 'WhatsApp & SMS',
+    verified: true
+  };
+  fallbackParents.unshift(newParent);
+
+  res.status(201).json({
+    success: true,
+    message: `Student ${name} successfully enrolled. Biometric Thumbprint ID: ${thumbprintId}`,
+    student: newStudent
+  });
+});
+
+/**
+ * PUT /api/admin/students/:id (Admin updates student)
+ */
+app.put('/api/admin/students/:id', verifyAdminToken, async (req, res) => {
+  const { id } = req.params;
+  const { name, grade, section, campus, parentName, parentPhone, parentEmail, attendanceStatus } = req.body;
+
+  try {
+    await query(
+      `UPDATE students SET name = COALESCE($1, name), grade = COALESCE($2, grade), section = COALESCE($3, section), campus = COALESCE($4, campus), parent_name = COALESCE($5, parent_name), parent_phone = COALESCE($6, parent_phone), parent_email = COALESCE($7, parent_email), attendance_status = COALESCE($8, attendance_status)
+       WHERE id = $9`,
+      [name, grade, section, campus, parentName, parentPhone, parentEmail, attendanceStatus, id]
+    );
+  } catch (err) {
+    console.log('Updated student in fallback store');
+  }
+
+  const idx = fallbackStudents.findIndex(s => s.id === id);
+  if (idx !== -1) {
+    fallbackStudents[idx] = { ...fallbackStudents[idx], ...req.body };
+  }
+
+  res.json({ success: true, message: `Student ${id} profile updated successfully.` });
+});
+
+/**
+ * DELETE /api/admin/students/:id (Admin deletes student)
+ */
+app.delete('/api/admin/students/:id', verifyAdminToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await query('DELETE FROM students WHERE id = $1', [id]);
+  } catch (err) {
+    console.log('Removed from fallback store');
+  }
+
+  fallbackStudents = fallbackStudents.filter(s => s.id !== id);
+  res.json({ success: true, message: `Student ${id} archived from school records.` });
+});
+
+/**
+ * GET /api/parents (Retrieve parents list with photos & linked student info)
+ */
+app.get('/api/parents', async (req, res) => {
+  const { page = 1, limit = 20, search = '', country = '', campus = '' } = req.query;
+
+  try {
+    let sql = 'SELECT * FROM parents WHERE 1=1';
+    let countSql = 'SELECT COUNT(*) FROM parents WHERE 1=1';
+    const params = [];
+    const countParams = [];
+
+    if (search) {
+      params.push(`%${search.toLowerCase()}%`);
+      countParams.push(`%${search.toLowerCase()}%`);
+      const clause = ` AND (LOWER(name) LIKE $${params.length} OR LOWER(id) LIKE $${params.length} OR LOWER(student_name) LIKE $${params.length} OR LOWER(phone) LIKE $${params.length})`;
+      sql += clause;
+      countSql += clause;
+    }
+
+    if (country && country !== 'ALL') {
+      params.push(country);
+      countParams.push(country);
+      const clause = ` AND (country = $${params.length} OR country_code = $${params.length})`;
+      sql += clause;
+      countSql += clause;
+    }
+
+    const countRes = await query(countSql, countParams);
+    const total = parseInt(countRes.rows[0].count, 10);
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const offset = (pageNum - 1) * limitNum;
+
+    params.push(limitNum);
+    params.push(offset);
+    sql += ` ORDER BY name ASC LIMIT $${params.length - 1} OFFSET $${params.length}`;
+
+    const dataRes = await query(sql, params);
+
+    res.json({
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+      data: dataRes.rows
+    });
+  } catch (err) {
+    // Fallback in-memory
+    let list = fallbackParents;
+    if (search) {
+      const s = search.toLowerCase();
+      list = list.filter(p => p.name?.toLowerCase().includes(s) || p.studentName?.toLowerCase().includes(s) || p.phone?.includes(s) || p.id?.toLowerCase().includes(s));
+    }
+    if (country && country !== 'ALL') {
+      list = list.filter(p => p.country === country || p.countryCode === country);
+    }
+    if (campus && campus !== 'ALL') {
+      list = list.filter(p => p.campus?.includes(campus));
+    }
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    res.json({
+      total: list.length,
+      page: pageNum,
+      totalPages: Math.ceil(list.length / limitNum),
+      data: list.slice((pageNum - 1) * limitNum, pageNum * limitNum)
+    });
+  }
+});
+
+/**
+ * POST /api/admin/parents (Admin / Super Admin registers new parent)
+ */
+app.post(['/api/admin/parents', '/api/parents'], verifyAdminToken, async (req, res) => {
+  const { name, phone, email, country, campus, studentId, studentName, studentGrade, relationship, avatar, preferredChannel } = req.body;
+
+  if (!name || !phone) {
+    return res.status(400).json({ error: 'Parent name and phone number are required.' });
+  }
+
+  const id = `PRN-${Date.now().toString().slice(-4)}`;
+  const countryCode = country ? country.slice(0, 3).toUpperCase() : 'UAE';
+  const defaultAvatar = avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&h=200&q=80';
+
+  const newParent = {
+    id,
+    name,
+    phone,
+    email: email || `parent.${name.toLowerCase().replace(/\s+/g, '')}@gccparents.com`,
+    country: country || 'United Arab Emirates',
+    countryCode,
+    campus: campus || 'Dubai Academic City Campus (UAE)',
+    nationality: 'Emirati',
+    avatar: defaultAvatar,
+    studentId: studentId || 'GCC-STU-5001',
+    studentName: studentName || 'Student Ward',
+    studentGrade: studentGrade || 'Grade 9',
+    relationship: relationship || 'Parent / Guardian',
+    notificationsEnabled: true,
+    preferredChannel: preferredChannel || 'WhatsApp & SMS',
+    verified: true
+  };
+
+  try {
+    await query(
+      `INSERT INTO parents (id, name, phone, email, country, country_code, campus, nationality, avatar, student_id, student_name, student_grade, relationship, notifications_enabled, preferred_channel, verified)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+      [newParent.id, newParent.name, newParent.phone, newParent.email, newParent.country, countryCode, newParent.campus, newParent.nationality, newParent.avatar, newParent.studentId, newParent.studentName, newParent.studentGrade, newParent.relationship, true, newParent.preferredChannel, true]
+    );
+  } catch (err) {
+    console.log('Saved to in-memory fallback parents store');
+  }
+
+  fallbackParents.unshift(newParent);
+
+  res.status(201).json({
+    success: true,
+    message: `Parent Guardian ${name} registered successfully.`,
+    parent: newParent
+  });
+});
+
+/**
+ * PUT /api/admin/parents/:id (Admin edits parent guardian)
+ */
+app.put('/api/admin/parents/:id', verifyAdminToken, async (req, res) => {
+  const { id } = req.params;
+  const { name, phone, email, country, campus, studentName, studentGrade, relationship, preferredChannel } = req.body;
+
+  try {
+    await query(
+      `UPDATE parents SET name = COALESCE($1, name), phone = COALESCE($2, phone), email = COALESCE($3, email), country = COALESCE($4, country), campus = COALESCE($5, campus), student_name = COALESCE($6, student_name), student_grade = COALESCE($7, student_grade), relationship = COALESCE($8, relationship), preferred_channel = COALESCE($9, preferred_channel)
+       WHERE id = $10`,
+      [name, phone, email, country, campus, studentName, studentGrade, relationship, preferredChannel, id]
+    );
+  } catch (err) {
+    console.log('Updated in fallback parents store');
+  }
+
+  const idx = fallbackParents.findIndex(p => p.id === id);
+  if (idx !== -1) {
+    fallbackParents[idx] = { ...fallbackParents[idx], ...req.body };
+  }
+
+  res.json({ success: true, message: `Parent ${id} profile updated successfully.` });
+});
+
+/**
+ * DELETE /api/admin/parents/:id (Admin removes parent)
+ */
+app.delete('/api/admin/parents/:id', verifyAdminToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await query('DELETE FROM parents WHERE id = $1', [id]);
+  } catch (err) {
+    console.log('Removed from fallback parents store');
+  }
+
+  fallbackParents = fallbackParents.filter(p => p.id !== id);
+  res.json({ success: true, message: `Parent record ${id} removed.` });
+});
+
+/**
+ * GET /api/stats (Live counts for dashboard stats & drawer badges)
+ */
+app.get('/api/stats', async (req, res) => {
+  try {
+    let studentsCount = fallbackStudents.length;
+    let teachersCount = fallbackTeachers.length;
+    let parentsCount = fallbackParents.length;
+
+    try {
+      const sRes = await query('SELECT COUNT(*) FROM students');
+      if (sRes.rows[0]) studentsCount = parseInt(sRes.rows[0].count, 10);
+      const tRes = await query('SELECT COUNT(*) FROM teachers');
+      if (tRes.rows[0]) teachersCount = parseInt(tRes.rows[0].count, 10);
+      const pRes = await query('SELECT COUNT(*) FROM parents');
+      if (pRes.rows[0]) parentsCount = parseInt(pRes.rows[0].count, 10);
+    } catch (e) {
+      // In-memory fallback counts
+    }
+
+    res.json({
+      studentsCount,
+      teachersCount,
+      parentsCount,
+      campusesCount: 6,
+      countriesCount: 6
+    });
+  } catch (err) {
+    res.json({
+      studentsCount: fallbackStudents.length,
+      teachersCount: fallbackTeachers.length,
+      parentsCount: fallbackParents.length,
+      campusesCount: 6,
+      countriesCount: 6
+    });
+  }
+});
+
 
 // Biometric thumb machine scan
 app.post('/api/biometric/scan', async (req, res) => {

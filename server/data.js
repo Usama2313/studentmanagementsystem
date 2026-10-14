@@ -348,6 +348,48 @@ const INITIAL_MENU = [
   }
 ];
 
+export const PARENT_AVATARS = [
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&w=200&h=200&q=80',
+  'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=200&h=200&q=80'
+];
+
+export function generateParents(studentsList = []) {
+  const parents = [];
+  const source = studentsList.length > 0 ? studentsList : generateStudents();
+  const map = new Map();
+  source.forEach((st, idx) => {
+    if (!map.has(st.parentName)) {
+      map.set(st.parentName, {
+        id: `PRN-${4000 + map.size + 1}`,
+        name: st.parentName,
+        phone: st.parentPhone,
+        email: st.parentEmail,
+        country: st.country,
+        countryCode: st.countryCode,
+        campus: st.campus,
+        nationality: st.nationality,
+        avatar: PARENT_AVATARS[map.size % PARENT_AVATARS.length],
+        studentId: st.id,
+        studentName: st.name,
+        studentGrade: st.grade,
+        relationship: idx % 3 === 0 ? 'Mother' : idx % 3 === 1 ? 'Father' : 'Legal Guardian',
+        notificationsEnabled: true,
+        preferredChannel: idx % 2 === 0 ? 'WhatsApp & SMS' : 'SMS Only',
+        verified: true
+      });
+    }
+  });
+  return Array.from(map.values());
+}
+
 export {
   GCC_COUNTRIES,
   NATIONALITIES,
@@ -359,3 +401,4 @@ export {
   INITIAL_NEWS,
   INITIAL_MENU
 };
+
