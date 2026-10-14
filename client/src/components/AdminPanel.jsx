@@ -30,6 +30,7 @@ import {
   Mail,
   BookOpen,
   Menu,
+  ChevronLeft,
   ChevronRight,
   ShieldCheck,
   Award,
@@ -124,6 +125,7 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
   const [studentCountryFilter, setStudentCountryFilter] = useState('ALL');
   const [studentGradeFilter, setStudentGradeFilter] = useState('ALL');
   const [studentPage, setStudentPage] = useState(1);
+  const [studentTotalPages, setStudentTotalPages] = useState(1);
   const [studentLoading, setStudentLoading] = useState(false);
   const [studentModalOpen, setStudentModalOpen] = useState(false);
   const [studentMsg, setStudentMsg] = useState('');
@@ -145,6 +147,8 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
   const [teachersTotal, setTeachersTotal] = useState(28);
   const [teacherSearch, setTeacherSearch] = useState('');
   const [teacherSubjectFilter, setTeacherSubjectFilter] = useState('ALL');
+  const [teacherPage, setTeacherPage] = useState(1);
+  const [teacherTotalPages, setTeacherTotalPages] = useState(1);
   const [teacherModalOpen, setTeacherModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState(null);
   const [teacherFormData, setTeacherFormData] = useState({
@@ -166,6 +170,8 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
   const [parentsTotal, setParentsTotal] = useState(1200);
   const [parentSearch, setParentSearch] = useState('');
   const [parentCountryFilter, setParentCountryFilter] = useState('ALL');
+  const [parentPage, setParentPage] = useState(1);
+  const [parentTotalPages, setParentTotalPages] = useState(1);
   const [parentModalOpen, setParentModalOpen] = useState(false);
   const [parentMsg, setParentMsg] = useState('');
   const [parentLoading, setParentLoading] = useState(false);
@@ -223,9 +229,9 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
   // Initial Data Loading
   useEffect(() => {
     loadAllStats();
-    loadTeachersData();
-    loadStudentsData();
-    loadParentsData();
+    loadTeachersData(1);
+    loadStudentsData(1);
+    loadParentsData(1);
     loadMenuAndBroadcasts();
     loadNewsData();
     loadBioData();
@@ -234,6 +240,18 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
       loadAdminUsers();
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    loadStudentsData(studentPage);
+  }, [studentPage]);
+
+  useEffect(() => {
+    loadTeachersData(teacherPage);
+  }, [teacherPage]);
+
+  useEffect(() => {
+    loadParentsData(parentPage);
+  }, [parentPage]);
 
   const loadAllStats = async () => {
     try {
@@ -250,11 +268,11 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
   };
 
   // --- STUDENTS ---
-  const loadStudentsData = async () => {
+  const loadStudentsData = async (targetPage = studentPage) => {
     try {
       setStudentLoading(true);
       const res = await fetchStudents({
-        page: studentPage,
+        page: targetPage,
         limit: 15,
         search: studentSearch,
         country: studentCountryFilter,
@@ -262,7 +280,10 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
       });
       if (res?.data) {
         setStudentsList(res.data);
-        if (res.total) setStudentsTotal(res.total);
+        if (res.total !== undefined) {
+          setStudentsTotal(res.total);
+          setStudentTotalPages(res.totalPages || Math.ceil(res.total / 15) || 1);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -300,13 +321,19 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
   };
 
   // --- TEACHERS ---
-  const loadTeachersData = async () => {
+  const loadTeachersData = async (targetPage = teacherPage) => {
     try {
       setTeacherLoading(true);
       const res = await fetchTeachers({ search: teacherSearch, subject: teacherSubjectFilter });
       if (res?.data) {
-        setTeachersList(res.data);
-        if (res.total) setTeachersTotal(res.total);
+        const all = res.data;
+        const total = res.total || all.length;
+        setTeachersTotal(total);
+        const limit = 12;
+        const totalP = Math.ceil(total / limit) || 1;
+        setTeacherTotalPages(totalP);
+        const start = (targetPage - 1) * limit;
+        setTeachersList(all.slice(start, start + limit));
       }
     } catch (e) {
       console.error(e);
@@ -327,7 +354,7 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
       }
       setTeacherModalOpen(false);
       setEditingTeacher(null);
-      loadTeachersData();
+      loadTeachersData(teacherPage);
       loadAllStats();
       setTimeout(() => setTeacherMsg(''), 4000);
     } catch (err) {
@@ -340,7 +367,7 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
     try {
       await deleteTeacher(id, token);
       setTeacherMsg(`Teacher ${name} removed.`);
-      loadTeachersData();
+      loadTeachersData(teacherPage);
       loadAllStats();
       setTimeout(() => setTeacherMsg(''), 4000);
     } catch (err) {
@@ -349,17 +376,21 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
   };
 
   // --- PARENTS (WITH PICTURES) ---
-  const loadParentsData = async () => {
+  const loadParentsData = async (targetPage = parentPage) => {
     try {
       setParentLoading(true);
       const res = await fetchParents({
         search: parentSearch,
         country: parentCountryFilter,
+        page: targetPage,
         limit: 15
       });
       if (res?.data) {
         setParentsList(res.data);
-        if (res.total) setParentsTotal(res.total);
+        if (res.total !== undefined) {
+          setParentsTotal(res.total);
+          setParentTotalPages(res.totalPages || Math.ceil(res.total / 15) || 1);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -948,7 +979,7 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                 </select>
               </div>
 
-              <button className="btn-filter-apply" onClick={loadStudentsData}>Apply Filters</button>
+              <button className="btn-filter-apply" onClick={() => { setStudentPage(1); loadStudentsData(1); }}>Apply Filters</button>
             </div>
 
             {/* Students Table */}
@@ -956,7 +987,7 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Student ID & Name</th>
+                    <th>Student Photo & ID</th>
                     <th>Grade & Section</th>
                     <th>Campus & Country</th>
                     <th>Biometric Gate Status</th>
@@ -969,9 +1000,15 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                     <tr key={st.id}>
                       <td>
                         <div className="entity-cell">
-                          <div className="avatar-chip">
-                            {st.name.charAt(0)}
-                          </div>
+                          <img
+                            src={st.avatar || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80`}
+                            alt={st.name}
+                            className="avatar-img-table"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80';
+                            }}
+                          />
                           <div>
                             <span className="entity-name">{st.name}</span>
                             <span className="entity-sub">{st.id} • {st.nationality || 'GCC'}</span>
@@ -1012,6 +1049,46 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Students Universal Pagination Bar */}
+            <div className="pagination-bar">
+              <div className="pagination-info">
+                <span>Showing page <strong>{studentPage}</strong> of <strong>{studentTotalPages}</strong> ({studentsTotal.toLocaleString()} Enrolled Students)</span>
+              </div>
+              <div className="pagination-controls">
+                <button
+                  className="page-btn"
+                  disabled={studentPage === 1}
+                  onClick={() => setStudentPage(p => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft size={16} /> Previous
+                </button>
+                <div className="page-numbers-group">
+                  {studentPage > 2 && (
+                    <button className="page-num-btn" onClick={() => setStudentPage(1)}>1</button>
+                  )}
+                  {studentPage > 3 && <span style={{ color: '#64748b' }}>...</span>}
+                  {studentPage > 1 && (
+                    <button className="page-num-btn" onClick={() => setStudentPage(studentPage - 1)}>{studentPage - 1}</button>
+                  )}
+                  <button className="page-num-btn active">{studentPage}</button>
+                  {studentPage < studentTotalPages && (
+                    <button className="page-num-btn" onClick={() => setStudentPage(studentPage + 1)}>{studentPage + 1}</button>
+                  )}
+                  {studentPage < studentTotalPages - 2 && <span style={{ color: '#64748b' }}>...</span>}
+                  {studentPage < studentTotalPages - 1 && (
+                    <button className="page-num-btn" onClick={() => setStudentPage(studentTotalPages)}>{studentTotalPages}</button>
+                  )}
+                </div>
+                <button
+                  className="page-btn"
+                  disabled={studentPage === studentTotalPages}
+                  onClick={() => setStudentPage(p => Math.min(studentTotalPages, p + 1))}
+                >
+                  Next <ChevronRight size={16} />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1062,7 +1139,7 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                 </select>
               </div>
 
-              <button className="btn-filter-apply" onClick={loadTeachersData}>Apply Filter</button>
+              <button className="btn-filter-apply" onClick={() => { setTeacherPage(1); loadTeachersData(1); }}>Apply Filter</button>
             </div>
 
             {/* Teachers Table */}
@@ -1156,6 +1233,42 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                 </tbody>
               </table>
             </div>
+
+            {/* Teachers Universal Pagination Bar */}
+            {teacherTotalPages > 1 && (
+              <div className="pagination-bar">
+                <div className="pagination-info">
+                  <span>Showing page <strong>{teacherPage}</strong> of <strong>{teacherTotalPages}</strong> ({teachersTotal} Faculty Members)</span>
+                </div>
+                <div className="pagination-controls">
+                  <button
+                    className="page-btn"
+                    disabled={teacherPage === 1}
+                    onClick={() => setTeacherPage(p => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft size={16} /> Previous
+                  </button>
+                  <div className="page-numbers-group">
+                    {Array.from({ length: teacherTotalPages }, (_, i) => i + 1).map(pNum => (
+                      <button
+                        key={pNum}
+                        className={`page-num-btn ${teacherPage === pNum ? 'active' : ''}`}
+                        onClick={() => setTeacherPage(pNum)}
+                      >
+                        {pNum}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    className="page-btn"
+                    disabled={teacherPage === teacherTotalPages}
+                    onClick={() => setTeacherPage(p => Math.min(teacherTotalPages, p + 1))}
+                  >
+                    Next <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1199,7 +1312,7 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                 </select>
               </div>
 
-              <button className="btn-filter-apply" onClick={loadParentsData}>Apply Filter</button>
+              <button className="btn-filter-apply" onClick={() => { setParentPage(1); loadParentsData(1); }}>Apply Filter</button>
             </div>
 
             {/* Parents Cards & Table */}
@@ -1273,6 +1386,46 @@ export default function AdminPanel({ currentUser, onLogout, onRefreshData }) {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Parents Universal Pagination Bar */}
+            <div className="pagination-bar">
+              <div className="pagination-info">
+                <span>Showing page <strong>{parentPage}</strong> of <strong>{parentTotalPages}</strong> ({parentsTotal.toLocaleString()} Registered Parents)</span>
+              </div>
+              <div className="pagination-controls">
+                <button
+                  className="page-btn"
+                  disabled={parentPage === 1}
+                  onClick={() => setParentPage(p => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft size={16} /> Previous
+                </button>
+                <div className="page-numbers-group">
+                  {parentPage > 2 && (
+                    <button className="page-num-btn" onClick={() => setParentPage(1)}>1</button>
+                  )}
+                  {parentPage > 3 && <span style={{ color: '#64748b' }}>...</span>}
+                  {parentPage > 1 && (
+                    <button className="page-num-btn" onClick={() => setParentPage(parentPage - 1)}>{parentPage - 1}</button>
+                  )}
+                  <button className="page-num-btn active">{parentPage}</button>
+                  {parentPage < parentTotalPages && (
+                    <button className="page-num-btn" onClick={() => setParentPage(parentPage + 1)}>{parentPage + 1}</button>
+                  )}
+                  {parentPage < parentTotalPages - 2 && <span style={{ color: '#64748b' }}>...</span>}
+                  {parentPage < parentTotalPages - 1 && (
+                    <button className="page-num-btn" onClick={() => setParentPage(parentTotalPages)}>{parentTotalPages}</button>
+                  )}
+                </div>
+                <button
+                  className="page-btn"
+                  disabled={parentPage === parentTotalPages}
+                  onClick={() => setParentPage(p => Math.min(parentTotalPages, p + 1))}
+                >
+                  Next <ChevronRight size={16} />
+                </button>
+              </div>
             </div>
           </div>
         )}

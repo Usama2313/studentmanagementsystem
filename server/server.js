@@ -68,6 +68,29 @@ let fallbackLogs = [];
 let fallbackBookings = [];
 let fallbackMealAlerts = [];
 
+// Auto-ensure parents table exists in DB
+query(`
+  CREATE TABLE IF NOT EXISTS parents (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    relationship TEXT,
+    student_name TEXT,
+    student_grade TEXT,
+    student_id TEXT,
+    phone TEXT,
+    email TEXT,
+    country TEXT,
+    country_code TEXT,
+    campus TEXT,
+    nationality TEXT,
+    avatar TEXT,
+    preferred_channel TEXT DEFAULT 'WhatsApp & SMS',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  );
+`).catch(err => {
+  console.log('PostgreSQL auto-create table note:', err.message);
+});
+
 const pendingOtpStore = new Map();
 
 // Helper: JWT verification middleware for Admin and Superadmin
@@ -1031,13 +1054,24 @@ app.get('/api/news', async (req, res) => {
   try {
     const result = await query('SELECT * FROM news_announcements ORDER BY created_at DESC');
     if (result.rows.length > 0) {
-      return res.json({ total: result.rows.length, data: result.rows });
+      const mapped = result.rows.map(r => ({
+        ...r,
+        coverImage: r.cover_image || r.coverImage || 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80',
+        cover_image: r.cover_image || r.coverImage || 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80'
+      }));
+      return res.json({ total: mapped.length, data: mapped, articles: mapped });
     }
   } catch (e) {
     // fallback
   }
-  res.json({ total: fallbackNews.length, data: fallbackNews });
+  const fallbackMapped = fallbackNews.map(r => ({
+    ...r,
+    coverImage: r.coverImage || r.cover_image || 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80',
+    cover_image: r.cover_image || r.coverImage || 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80'
+  }));
+  res.json({ total: fallbackMapped.length, data: fallbackMapped, articles: fallbackMapped });
 });
+
 
 app.post('/api/news', verifyAdminToken, async (req, res) => {
   const { title, category, campus, summary, content, coverImage, author, featured } = req.body;

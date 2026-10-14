@@ -31,6 +31,9 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
+  const [teacherPage, setTeacherPage] = useState(1);
+  const [teacherTotalPages, setTeacherTotalPages] = useState(1);
+  const [totalTeachers, setTotalTeachers] = useState(28);
   const [searchQuery, setSearchQuery] = useState('');
   const [gradeFilter, setGradeFilter] = useState('');
   const [nationalityFilter, setNationalityFilter] = useState('All Nationalities');
@@ -43,7 +46,8 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
     } else {
       loadTeachers();
     }
-  }, [viewType, page, searchQuery, gradeFilter, nationalityFilter, statusFilter, selectedCountry]);
+  }, [viewType, page, teacherPage, searchQuery, gradeFilter, nationalityFilter, statusFilter, selectedCountry]);
+
 
   const loadStudents = async () => {
     try {
@@ -79,7 +83,12 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
       };
       const res = await fetchTeachers(params);
       if (res && res.data) {
-        setTeachers(res.data);
+        const allTeachers = res.data;
+        setTotalTeachers(allTeachers.length);
+        const limit = 12;
+        setTeacherTotalPages(Math.ceil(allTeachers.length / limit) || 1);
+        const startIndex = (teacherPage - 1) * limit;
+        setTeachers(allTeachers.slice(startIndex, startIndex + limit));
       }
     } catch (err) {
       console.error('Failed to load teachers', err);
@@ -87,6 +96,7 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
       setLoading(false);
     }
   };
+
 
   return (
     <section className="directory-section">
@@ -114,19 +124,20 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
               }}
             >
               <GraduationCap size={18} />
-              <span>Students Directory ({totalStudents ? totalStudents.toLocaleString() : '1,200+'})</span>
+              <span>Students Directory ({totalStudents ? totalStudents.toLocaleString() : '3,500+'})</span>
             </button>
             <button
               className={`toggle-btn ${viewType === 'teachers' ? 'active' : ''}`}
               onClick={() => {
                 setViewType('teachers');
-                setPage(1);
+                setTeacherPage(1);
               }}
             >
               <Briefcase size={18} />
-              <span>Faculty & Leadership (120)</span>
+              <span>Faculty & Leadership ({totalTeachers || 28})</span>
             </button>
           </div>
+
         </div>
 
         {/* Filter Bar */}
@@ -218,14 +229,22 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
                 </tr>
               </thead>
               <tbody>
-                {students.map((st) => (
-                  <tr key={st.id}>
+                {students.map((st, idx) => (
+                  <tr key={st.id || idx}>
                     <td>
                       <div className="person-col">
-                        <div className="avatar-tag">{(st.name || '?').charAt(0)}</div>
+                        <img
+                          src={st.avatar || `https://images.unsplash.com/photo-${1535713875002 + ((idx * 23) % 400000)}?auto=format&fit=crop&w=100&h=100&q=80`}
+                          alt={st.name}
+                          className="avatar-photo-circle"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80';
+                          }}
+                        />
                         <div className="name-box">
                           <span className="p-name">{st.name}</span>
-                          <span className="p-parent">Parent: {st.parentName}</span>
+                          <span className="p-parent">Parent: {st.parentName || st.parent_name || 'Guardian'}</span>
                         </div>
                       </div>
                     </td>
@@ -233,12 +252,12 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
                       <div className="id-col">
                         <span className="id-badge">{st.id}</span>
                         <span className="thumb-id">
-                          <Fingerprint size={12} /> {st.thumbprintId}
+                          <Fingerprint size={12} /> {st.thumbprintId || st.thumbprint_id || `FP-${st.id}`}
                         </span>
                       </div>
                     </td>
                     <td>
-                      <span className="grade-badge">{st.grade} ({st.section})</span>
+                      <span className="grade-badge">{st.grade} ({st.section || 'A'})</span>
                     </td>
                     <td>
                       <span className="nat-badge">
@@ -251,20 +270,20 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
                     <td>
                       <span
                         className={`status-pill ${
-                          (st.attendanceStatus || '').includes('Inside')
+                          (st.attendanceStatus || st.attendance_status || '').includes('Inside')
                             ? 'status-in'
-                            : (st.attendanceStatus || '').includes('Checked Out')
+                            : (st.attendanceStatus || st.attendance_status || '').includes('Checked Out')
                             ? 'status-out'
                             : 'status-absent'
                         }`}
                       >
-                        {st.attendanceStatus}
+                        {st.attendanceStatus || st.attendance_status || 'Checked Out'}
                       </span>
                     </td>
                     <td>
                       <div className="timestamps-col">
-                        <span>In: <strong>{st.timeIn || '—'}</strong></span>
-                        <span>Out: <strong>{st.timeOut || '—'}</strong></span>
+                        <span>In: <strong>{st.timeIn || st.time_in || '07:45 AM'}</strong></span>
+                        <span>Out: <strong>{st.timeOut || st.time_out || '—'}</strong></span>
                       </div>
                     </td>
                   </tr>
@@ -278,7 +297,15 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
             {teachers.map((tch) => (
               <div key={tch.id} className="teacher-card glass-panel">
                 <div className="teacher-top">
-                  <div className="tch-avatar">{(tch.name || '?').charAt(0)}</div>
+                  <img
+                    src={tch.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80'}
+                    alt={tch.name}
+                    className="tch-avatar-photo"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&h=120&q=80';
+                    }}
+                  />
                   <div className="tch-title-box">
                     <h4 className="tch-name">{tch.name}</h4>
                     <span className="tch-subj">{tch.subject}</span>
@@ -296,14 +323,14 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
                   </div>
                   <div className="tch-meta-line">
                     <Fingerprint size={14} />
-                    <span>Thumbprint: {tch.thumbprintId}</span>
+                    <span>Thumbprint: {tch.thumbprintId || tch.thumbprint_id || `FP-${tch.id}`}</span>
                   </div>
                 </div>
 
                 <div className="tch-slots">
                   <span className="slots-label">Available PTM Slots:</span>
                   <div className="slots-pills">
-                    {tch.availableSlots?.slice(0, 2).map((s) => (
+                    {(tch.availableSlots || tch.available_slots || ['09:00 AM - 09:30 AM', '01:15 PM - 01:45 PM']).slice(0, 2).map((s) => (
                       <span key={s} className="mini-slot-pill">
                         {s}
                       </span>
@@ -326,7 +353,7 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
               <ChevronLeft size={16} /> Previous
             </button>
             <span className="page-indicator">
-              Page <strong>{page}</strong> of <strong>{totalPages}</strong> ({totalStudents.toLocaleString()} Students)
+              Page <strong>{page}</strong> of <strong>{totalPages}</strong> ({totalStudents.toLocaleString()} Enrolled Students)
             </span>
             <button
               className="page-btn"
@@ -337,6 +364,30 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
             </button>
           </div>
         )}
+
+        {/* Pagination Bar for Teachers */}
+        {viewType === 'teachers' && teacherTotalPages > 1 && (
+          <div className="pagination-bar">
+            <button
+              className="page-btn"
+              disabled={teacherPage === 1}
+              onClick={() => setTeacherPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft size={16} /> Previous
+            </button>
+            <span className="page-indicator">
+              Page <strong>{teacherPage}</strong> of <strong>{teacherTotalPages}</strong> ({totalTeachers} Faculty Members)
+            </span>
+            <button
+              className="page-btn"
+              disabled={teacherPage === teacherTotalPages}
+              onClick={() => setTeacherPage((p) => Math.min(teacherTotalPages, p + 1))}
+            >
+              Next <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+
       </div>
 
       <style>{`
@@ -457,10 +508,12 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
           gap: 12px;
         }
 
-        .avatar-tag {
-          width: 38px;
-          height: 38px;
+        .avatar-tag, .avatar-photo-circle {
+          width: 42px;
+          height: 42px;
           border-radius: 50%;
+          object-fit: cover;
+          border: 2px solid rgba(16, 185, 129, 0.4);
           background: rgba(16, 185, 129, 0.15);
           color: #34d399;
           font-weight: 700;
@@ -468,6 +521,15 @@ export default function StudentTeacherDirectory({ selectedCountry }) {
           align-items: center;
           justify-content: center;
         }
+
+        .tch-avatar-photo {
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 2px solid rgba(245, 158, 11, 0.4);
+        }
+
 
         .name-box {
           display: flex;

@@ -111,12 +111,12 @@ function generateTeachers() {
   return teachers;
 }
 
-// Generate 1,200 Students
+// Generate 3,500 Students across GCC
 function generateStudents() {
   const students = [];
   let id = 5001;
 
-  for (let i = 0; i < 1200; i++) {
+  for (let i = 0; i < 3500; i++) {
     const isMale = Math.random() > 0.5;
     const firstName = isMale ? getRandomItem(FIRST_NAMES_MALE) : getRandomItem(FIRST_NAMES_FEMALE);
     const lastName = getRandomItem(LAST_NAMES);
@@ -129,6 +129,7 @@ function generateStudents() {
     const parentName = `${parentFirstName} ${lastName}`;
     const parentPhone = `${countryObj.phonePrefix} 5${getRandomInt(10000000, 99999999)}`;
     const parentEmail = `parent.${lastName.toLowerCase().replace(/[^a-z]/g, '')}${id}@gccparents.com`;
+    const avatar = `https://images.unsplash.com/photo-${1535713875002 + (id * 17) % 300000000}?auto=format&fit=crop&w=150&h=150&q=80`;
 
     // Simulated Biometric status
     const randState = Math.random();
@@ -162,6 +163,7 @@ function generateStudents() {
       parentName,
       parentPhone,
       parentEmail,
+      avatar,
       attendanceStatus: currentStatus,
       timeIn,
       timeOut,
@@ -171,6 +173,7 @@ function generateStudents() {
   }
   return students;
 }
+
 
 // Initial News and Announcements
 const INITIAL_NEWS = [
@@ -184,6 +187,7 @@ const INITIAL_NEWS = [
     summary: 'Over 80 international student teams across Dubai, Riyadh, and Manama qualified for the autonomous robotics finals.',
     content: 'Students from Kindergarten through Grade 12 showcased breakthroughs in autonomous rover navigation, computer vision, and environmental sensor pods. The finals will be hosted at the Dubai Innovation Dome with live streaming to all sister campuses across Saudi Arabia, Bahrain, and Kuwait.',
     coverImage: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1200&q=80',
+    cover_image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1200&q=80',
     featured: true
   },
   {
@@ -195,7 +199,8 @@ const INITIAL_NEWS = [
     author: 'Campus Operations Directorate',
     summary: 'Sub-second optical thumb scanners installed across all 6 campus gates to ensure instant and secure time-in & time-out.',
     content: 'The new biometric stations log attendance in under 0.3 seconds and automatically sync with the Parent Portal app, sending real-time peace-of-mind alerts without any friction or paperwork.',
-    coverImage: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',
+    coverImage: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1200&q=80',
+    cover_image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1200&q=80',
     featured: true
   },
   {
@@ -207,7 +212,8 @@ const INITIAL_NEWS = [
     author: 'Student Council Leadership',
     summary: 'Students presented cultural exhibits, folklore dance, and international cuisine representing their home countries.',
     content: 'With students hailing from over 45 nations—including Emirati, Saudi, British, Indian, Egyptian, and Canadian backgrounds—the campus transformed into a vibrant cultural showcase of unity and shared learning.',
-    coverImage: 'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=1200&q=80',
+    coverImage: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80',
+    cover_image: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80',
     featured: false
   },
   {
@@ -220,9 +226,11 @@ const INITIAL_NEWS = [
     summary: 'Equipped with a 24-inch robotic telescope for celestial observation and planetary data science.',
     content: 'Secondary school students can now observe solar flares and lunar topographies in high definition, linking directly with space agency databases across the Arabian Gulf.',
     coverImage: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80',
+    cover_image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80',
     featured: false
   }
 ];
+
 
 // Student Food & Nutrition Menu (GCC School Week: Sun - Thu)
 const INITIAL_MENU = [

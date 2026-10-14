@@ -104,10 +104,14 @@ export default function NewsSection({ onOpenAdmin, selectedCountry }) {
               >
                 <div className="news-image-wrapper">
                   <img
-                    src={article.coverImage}
+                    src={article.coverImage || article.cover_image || 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80'}
                     alt={article.title}
                     className="news-image"
                     loading="lazy"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80';
+                    }}
                   />
                   <span className="news-category-badge">{article.category}</span>
                 </div>
@@ -149,10 +153,15 @@ export default function NewsSection({ onOpenAdmin, selectedCountry }) {
               </button>
 
               <img
-                src={activeArticle.coverImage}
+                src={activeArticle.coverImage || activeArticle.cover_image || 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80'}
                 alt={activeArticle.title}
                 className="modal-cover-image"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80';
+                }}
               />
+
 
               <div className="modal-inner-padding">
                 <div className="modal-meta-bar">
