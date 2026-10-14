@@ -1,0 +1,10 @@
+{
+  "name": "sms-root",
+  "version": "1.0.0",
+  "description": "GCC International Schools Management System - Frontend & Backend",
+  "scripts": {
+    "server": "node server/server.js",
+    "client": "npm --prefix client run dev",
+    "start": "node server/server.js"
+  }
+}
